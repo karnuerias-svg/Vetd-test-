@@ -233,8 +233,6 @@
         import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         
-        // กลับมาใช้ Firebase Storage เหมือนเดิม
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
         const firebaseConfig = {
@@ -250,7 +248,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const storage = getStorage(app); // ประกาศใช้งาน Storage
         const logsRef = collection(db, 'clinics', 'my-clinic', 'petLogs');
 
         let petLogs = [];
@@ -358,7 +355,7 @@
 
             emptyState.classList.add('hidden');
             
-            // โค้ดส่วนนี้ถูกแก้ให้ปลอดภัยจากการฝังตัวอักษร 100%
+            // ใช้การต่อ String แบบธรรมดา แทนการใช้ Template Literals ซ้อนกันเพื่อป้องกัน SyntaxError
             const logsHtmlArray = filteredLogs.map(log => {
                 const dateObj = new Date(log.date);
                 const displayDate = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -374,11 +371,15 @@
                             vitalsHtml = '<div class="flex flex-wrap gap-2 mb-3">' + wHtml + tHtml + '</div>';
                         }
 
-                        let textHtml = update.text ? '<p class="text-gray-800 whitespace-pre-wrap leading-relaxed font-semibold mb-2">' + update.text + '</p>' : '';
+                        let textHtml = update.text ? '<div class="mb-3"><p class="text-gray-500 text-[10px] font-bold mb-0.5 flex items-center gap-1 uppercase tracking-wide">History (Hx)</p><p class="text-gray-800 whitespace-pre-wrap leading-relaxed font-semibold mb-2">' + update.text + '</p></div>' : '';
+                        let peHtml = update.pe ? '<div class="bg-teal-50 border border-teal-100 rounded-lg p-2.5 mb-2"><p class="text-teal-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-teal-500"></i> Physical Exam (PE)</p><p class="text-teal-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.pe + '</p></div>' : '';
+                        let ddxHtml = update.diffDiag ? '<div class="bg-yellow-50 border border-yellow-100 rounded-lg p-2.5 mb-2"><p class="text-yellow-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-list-magnifying-glass text-yellow-500"></i> Diff. Diagnosis</p><p class="text-yellow-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.diffDiag + '</p></div>' : '';
+                        let dxHtml = update.finalDiag ? '<div class="bg-green-50 border border-green-100 rounded-lg p-2.5 mb-2"><p class="text-green-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-check-circle text-green-500"></i> Final Diagnosis (Dx)</p><p class="text-green-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.finalDiag + '</p></div>' : '';
                         let treatmentHtml = update.treatment ? '<div class="bg-blue-50 border border-blue-100 rounded-lg p-2.5 mb-2"><p class="text-blue-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-blue-500"></i> การรักษา / ยาที่จ่าย</p><p class="text-blue-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.treatment + '</p></div>' : '';
                         let labHtml = update.labResult ? '<div class="bg-purple-50 border border-purple-100 rounded-lg p-3 mb-2"><p class="text-purple-800 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-purple-500 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-purple-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.labResult + '</p></div>' : '';
+                        let ceHtml = update.ce ? '<div class="bg-pink-50 border border-pink-100 rounded-lg p-2.5 mb-2"><p class="text-pink-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-pink-500"></i> Client Education (CE)</p><p class="text-pink-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.ce + '</p></div>' : '';
                         
-                        // เคล็ดลับความปลอดภัย: ใช้ this.src เพื่อไม่ให้ข้อความยาวๆ ไปพังในคำสั่งคลิก
+                        // ปลอดภัยชัวร์ด้วย this.src 
                         let imageHtml = update.imageUrl ? '<img src="' + update.imageUrl + '" onclick="window.openImageModal(this.src)" class="mt-2 rounded-xl max-h-48 border border-gray-200 object-cover hover:opacity-90 transition cursor-zoom-in shadow-sm" alt="ภาพอัปเดต">' : '';
 
                         let timestampHtml = update.timestamp || '';
@@ -388,8 +389,12 @@
                         let updateWeight = update.weight || '';
                         let updateTemp = update.temp || '';
                         let updateText = update.text || '';
+                        let updatePe = update.pe || '';
+                        let updateDiffDiag = update.diffDiag || '';
+                        let updateFinalDiag = update.finalDiag || '';
                         let updateTreatment = update.treatment || '';
                         let updateLab = update.labResult || '';
+                        let updateCe = update.ce || '';
 
                         return `
                             <div class="bg-white border border-gray-200 p-4 rounded-xl text-sm mb-3 group/update relative">
@@ -411,8 +416,12 @@
                                 <div id="update-display-${log.id}-${index}">
                                     ${vitalsHtml}
                                     ${textHtml}
+                                    ${peHtml}
+                                    ${ddxHtml}
+                                    ${dxHtml}
                                     ${treatmentHtml}
                                     ${labHtml}
+                                    ${ceHtml}
                                     ${imageHtml}
                                 </div>
                                 
@@ -428,8 +437,23 @@
                                         </div>
                                     </div>
 
-                                    <textarea id="update-textarea-${log.id}-${index}" rows="1" placeholder="อัปเดตอาการ..." class="w-full text-sm font-semibold p-3 border border-gray-300 bg-gray-50 rounded-lg outline-none resize-none overflow-hidden text-gray-900 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateText}</textarea>
+                                    <textarea id="update-textarea-${log.id}-${index}" rows="1" placeholder="History (Hx) / ประวัติอาการ..." class="w-full text-sm font-semibold p-3 border border-gray-300 bg-gray-50 rounded-lg outline-none resize-none overflow-hidden text-gray-900 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateText}</textarea>
                                     
+                                    <div class="relative">
+                                        <div class="absolute top-3 left-3 text-teal-400"><i class="ph-fill ph-stethoscope text-lg"></i></div>
+                                        <textarea id="update-pe-${log.id}-${index}" rows="1" placeholder="Physical Examination (PE)..." class="w-full text-sm font-semibold p-3 pl-10 border border-teal-200 bg-teal-50 rounded-lg outline-none resize-none overflow-hidden text-teal-900 focus:border-teal-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updatePe}</textarea>
+                                    </div>
+
+                                    <div class="relative">
+                                        <div class="absolute top-3 left-3 text-yellow-500"><i class="ph-fill ph-list-magnifying-glass text-lg"></i></div>
+                                        <textarea id="update-ddx-${log.id}-${index}" rows="1" placeholder="Diff. Diagnosis (DDx)..." class="w-full text-sm font-semibold p-3 pl-10 border border-yellow-200 bg-yellow-50 rounded-lg outline-none resize-none overflow-hidden text-yellow-900 focus:border-yellow-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateDiffDiag}</textarea>
+                                    </div>
+
+                                    <div class="relative">
+                                        <div class="absolute top-3 left-3 text-green-500"><i class="ph-fill ph-check-circle text-lg"></i></div>
+                                        <textarea id="update-dx-${log.id}-${index}" rows="1" placeholder="Final Diagnosis (Dx)..." class="w-full text-sm font-semibold p-3 pl-10 border border-green-200 bg-green-50 rounded-lg outline-none resize-none overflow-hidden text-green-900 focus:border-green-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateFinalDiag}</textarea>
+                                    </div>
+
                                     <div class="relative">
                                         <div class="absolute top-3 left-3 text-blue-400"><i class="ph-fill ph-pill text-lg"></i></div>
                                         <textarea id="update-treatment-${log.id}-${index}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-blue-200 bg-blue-50 rounded-lg outline-none resize-none overflow-hidden text-blue-900 focus:border-blue-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateTreatment}</textarea>
@@ -438,6 +462,11 @@
                                     <div class="relative">
                                         <div class="absolute top-3 left-3 text-purple-400"><i class="ph-fill ph-flask text-lg"></i></div>
                                         <textarea id="update-lab-${log.id}-${index}" rows="1" placeholder="ผลตรวจแล็บ (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-purple-200 bg-purple-50 rounded-lg outline-none resize-none overflow-hidden text-purple-900 focus:border-purple-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateLab}</textarea>
+                                    </div>
+
+                                    <div class="relative">
+                                        <div class="absolute top-3 left-3 text-pink-400"><i class="ph-fill ph-chat-circle-text text-lg"></i></div>
+                                        <textarea id="update-ce-${log.id}-${index}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-sm font-semibold p-3 pl-10 border border-pink-200 bg-pink-50 rounded-lg outline-none resize-none overflow-hidden text-pink-900 focus:border-pink-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateCe}</textarea>
                                     </div>
 
                                     <div id="edit-preview-container-${log.id}-${index}" class="${editPreviewClass}">
@@ -493,7 +522,6 @@
                 let ownerPhoneHtml = log.ownerPhone ? '<span class="flex items-center gap-1 border-l border-gray-300 pl-2"><i class="ph-fill ph-phone text-gray-400 text-sm"></i> ' + log.ownerPhone + '</span>' : '';
                 let emptyStateHtml = (log.updates && log.updates.length === 0) ? '<p class="text-xs font-medium text-gray-400 italic mb-3 ml-1">ยังไม่มีประวัติการอัปเดต...</p>' : '';
 
-                // ระบบคำนวณอายุและแสดงประเภทสัตว์
                 let ageStr = log.dob ? calculateAge(log.dob) : '';
                 let ageHtml = ageStr ? '<span class="flex items-center gap-1 text-gray-500"><i class="ph-fill ph-cake text-pink-400 text-sm"></i> อายุ: ' + ageStr + '</span>' : '';
 
@@ -587,7 +615,7 @@
 
                         <div>
                             <p class="text-[11px] font-bold text-gray-500 mb-3 flex items-center gap-1.5 uppercase tracking-wide">
-                                <i class="ph-fill ph-activity text-sm text-gray-400"></i> ประวัติและอัปเดตอาการ
+                                <i class="ph-fill ph-activity text-sm text-gray-400"></i> Clinical Notes & Updates
                             </p>
                             
                             ${updatesHtml}
@@ -607,8 +635,23 @@
                                     </div>
                                 </div>
 
-                                <textarea id="new-update-${log.id}" rows="1" placeholder="พิมพ์อัปเดตอาการ..." class="w-full text-sm font-semibold text-gray-900 bg-transparent border border-gray-300 rounded-lg py-2.5 px-3 outline-none resize-none overflow-hidden placeholder:text-gray-400 mb-2 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                <textarea id="new-update-${log.id}" rows="1" placeholder="History (Hx) / ประวัติอาการ..." class="w-full text-sm font-semibold text-gray-900 bg-transparent border border-gray-300 rounded-lg py-2.5 px-3 outline-none resize-none overflow-hidden placeholder:text-gray-400 mb-2 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 
+                                <div class="relative mb-2">
+                                    <div class="absolute top-2 left-2 text-teal-400"><i class="ph-fill ph-stethoscope text-lg"></i></div>
+                                    <textarea id="new-pe-${log.id}" rows="1" placeholder="Physical Examination (PE)..." class="w-full text-sm font-semibold text-teal-900 bg-teal-50 border border-teal-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-teal-400 transition focus:border-teal-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                </div>
+
+                                <div class="relative mb-2">
+                                    <div class="absolute top-2 left-2 text-yellow-500"><i class="ph-fill ph-list-magnifying-glass text-lg"></i></div>
+                                    <textarea id="new-ddx-${log.id}" rows="1" placeholder="Diff. Diagnosis (DDx)..." class="w-full text-sm font-semibold text-yellow-900 bg-yellow-50 border border-yellow-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-yellow-400 transition focus:border-yellow-400" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                </div>
+
+                                <div class="relative mb-2">
+                                    <div class="absolute top-2 left-2 text-green-500"><i class="ph-fill ph-check-circle text-lg"></i></div>
+                                    <textarea id="new-dx-${log.id}" rows="1" placeholder="Final Diagnosis (Dx)..." class="w-full text-sm font-semibold text-green-900 bg-green-50 border border-green-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-green-400 transition focus:border-green-400" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                </div>
+
                                 <div class="relative mb-2">
                                     <div class="absolute top-2 left-2 text-blue-400"><i class="ph-fill ph-pill text-lg"></i></div>
                                     <textarea id="new-treatment-${log.id}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-sm font-semibold text-blue-900 bg-blue-50 border border-blue-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-blue-400 transition focus:border-blue-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
@@ -619,9 +662,14 @@
                                     <textarea id="new-lab-${log.id}" rows="1" placeholder="ผลตรวจแล็บ (พิมพ์เองหรือใช้ AI ช่วยอ่าน)..." class="w-full text-sm font-semibold text-purple-900 bg-purple-50 border border-purple-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-purple-400 transition focus:border-purple-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
 
+                                <div class="relative mb-2">
+                                    <div class="absolute top-2 left-2 text-pink-400"><i class="ph-fill ph-chat-circle-text text-lg"></i></div>
+                                    <textarea id="new-ce-${log.id}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-sm font-semibold text-pink-900 bg-pink-50 border border-pink-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-pink-400 transition focus:border-pink-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                </div>
+
                                 <div id="preview-container-${log.id}" class="hidden mt-2 relative w-fit px-1">
                                     <img id="preview-image-${log.id}" class="h-20 rounded-lg border border-gray-200 object-cover cursor-zoom-in" src="" alt="preview" onclick="window.openImageModal(this.src)">
-                                    <button type="button" onclick="window.removePreview('${log.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[10px] font-bold text-white"></i></button>
+                                    <button type="button" onclick="window.removePreview('${log.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[10px] font-bold text-white"></i></button>
                                 </div>
 
                                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mt-3 border-t border-gray-100 pt-3 px-1 gap-3">
@@ -825,12 +873,16 @@
             const newWeight = getVal('weight');
             const newTemp = getVal('temp');
             const updateText = getVal('update');
+            const peText = getVal('pe');
+            const ddxText = getVal('ddx');
+            const dxText = getVal('dx');
             const treatmentText = getVal('treatment');
             const labText = getVal('lab');
+            const ceText = getVal('ce');
             
             const file = window.pendingImages[id];
             
-            if (!updateText && !treatmentText && !labText && !newWeight && !newTemp && !file) return;
+            if (!updateText && !treatmentText && !labText && !newWeight && !newTemp && !peText && !ddxText && !dxText && !ceText && !file) return;
 
             const btn = document.getElementById(`submit-update-btn-${id}`);
             const originalBtnHtml = btn.innerHTML;
@@ -839,11 +891,9 @@
 
             try {
                 let imageUrl = null;
-                // --- กลับมาใช้ระบบ Firebase Storage แล้วครับ ---
+                // กลับมาใช้ฟังก์ชันบีบอัดภาพ (Compress Image) ไม่ใช้ Storage
                 if (file) {
-                    const storageRef = ref(storage, `updates/${id}/${Date.now()}_${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    imageUrl = await getDownloadURL(storageRef);
+                    imageUrl = await window.compressImage(file);
                 }
 
                 const now = new Date();
@@ -858,8 +908,12 @@
                     weight: newWeight,
                     temp: newTemp,
                     text: updateText, 
+                    pe: peText,
+                    diffDiag: ddxText,
+                    finalDiag: dxText,
                     treatment: treatmentText, 
                     labResult: labText,
+                    ce: ceText,
                     timestamp: timeString, 
                     imageUrl: imageUrl 
                 };
@@ -874,14 +928,26 @@
                 document.getElementById(`new-temp-${id}`).value = '';
                 
                 const textarea = document.getElementById(`new-update-${id}`);
-                textarea.value = ''; textarea.style.height = 'auto'; 
+                if(textarea) { textarea.value = ''; textarea.style.height = 'auto'; }
+                
+                const peArea = document.getElementById(`new-pe-${id}`);
+                if(peArea) { peArea.value = ''; peArea.style.height = 'auto'; }
+
+                const ddxArea = document.getElementById(`new-ddx-${id}`);
+                if(ddxArea) { ddxArea.value = ''; ddxArea.style.height = 'auto'; }
+
+                const dxArea = document.getElementById(`new-dx-${id}`);
+                if(dxArea) { dxArea.value = ''; dxArea.style.height = 'auto'; }
                 
                 const treatmentArea = document.getElementById(`new-treatment-${id}`);
-                treatmentArea.value = ''; treatmentArea.style.height = 'auto';
+                if(treatmentArea) { treatmentArea.value = ''; treatmentArea.style.height = 'auto'; }
                 
                 const labArea = document.getElementById(`new-lab-${id}`);
-                labArea.value = ''; labArea.style.height = 'auto';
+                if(labArea) { labArea.value = ''; labArea.style.height = 'auto'; }
                 
+                const ceArea = document.getElementById(`new-ce-${id}`);
+                if(ceArea) { ceArea.value = ''; ceArea.style.height = 'auto'; }
+
                 const aiContextInput = document.getElementById(`ai-context-${id}`);
                 if (aiContextInput) aiContextInput.value = '';
                 
@@ -921,7 +987,7 @@
             document.getElementById(`update-display-${id}-${index}`).classList.add('hidden');
             document.getElementById(`update-edit-${id}-${index}`).classList.remove('hidden');
             
-            const fields = ['textarea', 'treatment', 'lab'];
+            const fields = ['textarea', 'pe', 'ddx', 'dx', 'treatment', 'lab', 'ce'];
             fields.forEach(field => {
                 const el = document.getElementById(`update-${field}-${id}-${index}`);
                 if(el) {
@@ -946,13 +1012,17 @@
             const newWeight = getVal('weight');
             const newTemp = getVal('temp');
             const newText = getVal('textarea');
+            const newPe = getVal('pe');
+            const newDdx = getVal('ddx');
+            const newDx = getVal('dx');
             const newTreatment = getVal('treatment');
             const newLab = getVal('lab');
+            const newCe = getVal('ce');
             
             const file = window.pendingEditImages[`${id}-${index}`];
             const isImageRemoved = window.removedEditImages[`${id}-${index}`];
             
-            if (!newText && !newTreatment && !newLab && !newWeight && !newTemp && !file && isImageRemoved) return;
+            if (!newText && !newTreatment && !newLab && !newWeight && !newTemp && !newPe && !newDdx && !newDx && !newCe && !file && isImageRemoved) return;
 
             const btn = document.getElementById(`save-edit-btn-${id}-${index}`);
             const originalBtnHtml = btn.innerHTML;
@@ -966,18 +1036,20 @@
             if (isImageRemoved) imageUrl = null;
 
             try {
-                // --- กลับมาใช้ระบบ Firebase Storage แล้วครับ ---
+                // กลับมาใช้ฟังก์ชันบีบอัดภาพ (Compress Image) ไม่ใช้ Storage
                 if (file) {
-                    const storageRef = ref(storage, `updates/${id}/${Date.now()}_${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    imageUrl = await getDownloadURL(storageRef);
+                    imageUrl = await window.compressImage(file);
                 }
 
                 currentUpdates[index].weight = newWeight;
                 currentUpdates[index].temp = newTemp;
                 currentUpdates[index].text = newText;
+                currentUpdates[index].pe = newPe;
+                currentUpdates[index].diffDiag = newDdx;
+                currentUpdates[index].finalDiag = newDx;
                 currentUpdates[index].treatment = newTreatment;
                 currentUpdates[index].labResult = newLab;
+                currentUpdates[index].ce = newCe;
                 currentUpdates[index].imageUrl = imageUrl;
                 
                 const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
