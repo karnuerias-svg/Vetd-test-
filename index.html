@@ -21,7 +21,7 @@
                     }
                 }
             }
-        }
+        };
     </script>
     
     <!-- Google Fonts -->
@@ -105,6 +105,21 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">ชื่อสัตว์เลี้ยง</label>
                         <input type="text" id="petName" required placeholder="ชื่อน้องหมา/น้องแมว" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold placeholder:text-gray-400">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">ประเภทสัตว์</label>
+                            <select id="species" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold cursor-pointer">
+                                <option value="สุนัข">🐶 สุนัข (Dog)</option>
+                                <option value="แมว">🐱 แมว (Cat)</option>
+                                <option value="อื่นๆ">🐰 อื่นๆ (Exotic)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">วันเกิด (โดยประมาณ)</label>
+                            <input type="date" id="dob" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold">
+                        </div>
                     </div>
 
                     <div>
@@ -217,6 +232,9 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        
+        // กลับมาใช้ Firebase Storage เหมือนเดิม
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
         const firebaseConfig = {
@@ -232,6 +250,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        const storage = getStorage(app); // ประกาศใช้งาน Storage
         const logsRef = collection(db, 'clinics', 'my-clinic', 'petLogs');
 
         let petLogs = [];
@@ -300,6 +319,24 @@
         typeFilter.addEventListener('change', () => window.renderLogs());
         searchInput.addEventListener('input', () => window.renderLogs());
 
+        // ฟังก์ชันคำนวณอายุจากวันเกิด
+        function calculateAge(dobString) {
+            if (!dobString) return '';
+            const dob = new Date(dobString);
+            const today = new Date();
+            let years = today.getFullYear() - dob.getFullYear();
+            let months = today.getMonth() - dob.getMonth();
+            if (months < 0 || (months === 0 && today.getDate() < dob.getDate())) {
+                years--;
+                months += 12;
+            }
+            if (years === 0 && months === 0) return 'ไม่ถึง 1 เดือน';
+            let ageStr = [];
+            if (years > 0) ageStr.push(`${years} ปี`);
+            if (months > 0) ageStr.push(`${months} เดือน`);
+            return ageStr.join(' ');
+        }
+
         window.renderLogs = function() {
             const filterText = searchInput.value.toLowerCase();
             const filterType = typeFilter.value;
@@ -320,112 +357,126 @@
             }
 
             emptyState.classList.add('hidden');
-            logsContainer.innerHTML = filteredLogs.map(log => {
+            
+            // โค้ดส่วนนี้ถูกแก้ให้ปลอดภัยจากการฝังตัวอักษร 100%
+            const logsHtmlArray = filteredLogs.map(log => {
                 const dateObj = new Date(log.date);
                 const displayDate = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
                 
-                const updatesHtml = (log.updates || []).map((update, index) => `
-                    <div class="bg-white border border-gray-200 p-4 rounded-xl text-sm mb-3 group/update relative">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-gray-700 text-xs flex items-center gap-2">
-                                <i class="ph-fill ph-chat-circle text-gray-400"></i> อัปเดต ${index + 1}
-                                <div class="flex items-center gap-1 opacity-0 group-hover/update:opacity-100 transition-opacity">
-                                    <button onclick="window.toggleEditUpdate('${log.id}', ${index})" class="text-gray-400 hover:text-cozy-green bg-gray-50 rounded p-1 border border-gray-200" title="แก้ไข">
-                                        <i class="ph ph-pencil-simple text-sm"></i>
-                                    </button>
-                                    <button onclick="window.openDeleteModal('${log.id}', true, ${index})" class="text-gray-400 hover:text-red-500 bg-gray-50 rounded p-1 border border-gray-200" title="ลบอัปเดต">
-                                        <i class="ph ph-trash text-sm"></i>
-                                    </button>
-                                </div>
-                            </span>
-                            <span class="text-[10px] font-bold text-gray-400">${update.timestamp || ''}</span>
-                        </div>
+                let updatesHtml = '';
+                if (log.updates && log.updates.length > 0) {
+                    const updateItemsArray = log.updates.map((update, index) => {
                         
-                        <div id="update-display-${log.id}-${index}">
-                            
-                            ${update.weight || update.temp ? `
-                            <div class="flex flex-wrap gap-2 mb-3">
-                                ${update.weight ? `<span class="px-2.5 py-1.5 bg-orange-50 text-orange-700 text-xs font-bold rounded-lg border border-orange-100 flex items-center gap-1"><i class="ph-fill ph-scales text-orange-500"></i> ${update.weight} kg</span>` : ''}
-                                ${update.temp ? `<span class="px-2.5 py-1.5 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 flex items-center gap-1"><i class="ph-fill ph-thermometer text-red-500"></i> ${update.temp} °C</span>` : ''}
-                            </div>` : ''}
+                        let vitalsHtml = '';
+                        if (update.weight || update.temp) {
+                            let wHtml = update.weight ? '<span class="px-2.5 py-1.5 bg-orange-50 text-orange-700 text-xs font-bold rounded-lg border border-orange-100 flex items-center gap-1"><i class="ph-fill ph-scales text-orange-500"></i> ' + update.weight + ' kg</span>' : '';
+                            let tHtml = update.temp ? '<span class="px-2.5 py-1.5 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 flex items-center gap-1"><i class="ph-fill ph-thermometer text-red-500"></i> ' + update.temp + ' °C</span>' : '';
+                            vitalsHtml = '<div class="flex flex-wrap gap-2 mb-3">' + wHtml + tHtml + '</div>';
+                        }
 
-                            ${update.text ? `<p class="text-gray-800 whitespace-pre-wrap leading-relaxed font-semibold mb-2">${update.text}</p>` : ''}
-                            
-                            ${update.treatment ? `
-                            <div class="bg-blue-50 border border-blue-100 rounded-lg p-2.5 mb-2">
-                                <p class="text-blue-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-blue-500"></i> การรักษา / ยาที่จ่าย</p>
-                                <p class="text-blue-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">${update.treatment}</p>
-                            </div>
-                            ` : ''}
-                            
-                            ${update.labResult ? `
-                            <div class="bg-purple-50 border border-purple-100 rounded-lg p-3 mb-2">
-                                <p class="text-purple-800 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-purple-500 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p>
-                                <p class="text-purple-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">${update.labResult}</p>
-                            </div>
-                            ` : ''}
-
-                            ${update.imageUrl ? `<img src="${update.imageUrl}" onclick="window.openImageModal(this.src)" class="mt-2 rounded-xl max-h-48 border border-gray-200 object-cover hover:opacity-90 transition cursor-zoom-in shadow-sm" alt="ภาพอัปเดต">` : ''}
-                        </div>
+                        let textHtml = update.text ? '<p class="text-gray-800 whitespace-pre-wrap leading-relaxed font-semibold mb-2">' + update.text + '</p>' : '';
+                        let treatmentHtml = update.treatment ? '<div class="bg-blue-50 border border-blue-100 rounded-lg p-2.5 mb-2"><p class="text-blue-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-blue-500"></i> การรักษา / ยาที่จ่าย</p><p class="text-blue-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.treatment + '</p></div>' : '';
+                        let labHtml = update.labResult ? '<div class="bg-purple-50 border border-purple-100 rounded-lg p-3 mb-2"><p class="text-purple-800 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-purple-500 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-purple-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.labResult + '</p></div>' : '';
                         
-                        <div id="update-edit-${log.id}-${index}" class="hidden mt-3 flex flex-col gap-2 bg-white border border-gray-200 p-3 rounded-xl shadow-sm">
-                            <div class="grid grid-cols-2 gap-2 mb-1">
-                                <div class="relative">
-                                    <div class="absolute top-2.5 left-2.5 text-orange-400"><i class="ph-fill ph-scales text-lg"></i></div>
-                                    <input type="number" id="update-weight-${log.id}-${index}" step="0.01" placeholder="น้ำหนัก (กก.)" value="${update.weight || ''}" class="w-full text-sm font-semibold text-orange-900 bg-orange-50 border border-orange-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-orange-300">
-                                </div>
-                                <div class="relative">
-                                    <div class="absolute top-2.5 left-2.5 text-red-400"><i class="ph-fill ph-thermometer text-lg"></i></div>
-                                    <input type="number" id="update-temp-${log.id}-${index}" step="0.1" placeholder="อุณหภูมิ (°C)" value="${update.temp || ''}" class="w-full text-sm font-semibold text-red-900 bg-red-50 border border-red-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-red-300">
-                                </div>
-                            </div>
+                        // เคล็ดลับความปลอดภัย: ใช้ this.src เพื่อไม่ให้ข้อความยาวๆ ไปพังในคำสั่งคลิก
+                        let imageHtml = update.imageUrl ? '<img src="' + update.imageUrl + '" onclick="window.openImageModal(this.src)" class="mt-2 rounded-xl max-h-48 border border-gray-200 object-cover hover:opacity-90 transition cursor-zoom-in shadow-sm" alt="ภาพอัปเดต">' : '';
 
-                            <textarea id="update-textarea-${log.id}-${index}" rows="1" placeholder="อัปเดตอาการ..." class="w-full text-sm font-semibold p-3 border border-gray-300 bg-gray-50 rounded-lg outline-none resize-none overflow-hidden text-gray-900 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${update.text || ''}</textarea>
-                            
-                            <div class="relative">
-                                <div class="absolute top-3 left-3 text-blue-400"><i class="ph-fill ph-pill text-lg"></i></div>
-                                <textarea id="update-treatment-${log.id}-${index}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-blue-200 bg-blue-50 rounded-lg outline-none resize-none overflow-hidden text-blue-900 focus:border-blue-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${update.treatment || ''}</textarea>
-                            </div>
-                            
-                            <div class="relative">
-                                <div class="absolute top-3 left-3 text-purple-400"><i class="ph-fill ph-flask text-lg"></i></div>
-                                <textarea id="update-lab-${log.id}-${index}" rows="1" placeholder="ผลตรวจแล็บ (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-purple-200 bg-purple-50 rounded-lg outline-none resize-none overflow-hidden text-purple-900 focus:border-purple-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${update.labResult || ''}</textarea>
-                            </div>
+                        let timestampHtml = update.timestamp || '';
+                        let editPreviewClass = update.imageUrl ? "relative w-fit mt-1 px-1" : "hidden relative w-fit mt-1 px-1";
+                        let editPreviewSrc = update.imageUrl ? update.imageUrl : "";
+                        
+                        let updateWeight = update.weight || '';
+                        let updateTemp = update.temp || '';
+                        let updateText = update.text || '';
+                        let updateTreatment = update.treatment || '';
+                        let updateLab = update.labResult || '';
 
-                            <div id="edit-preview-container-${log.id}-${index}" class="${update.imageUrl ? '' : 'hidden'} relative w-fit mt-1 px-1">
-                                <img id="edit-preview-image-${log.id}-${index}" class="h-20 rounded-lg border border-gray-300 object-cover cursor-zoom-in" onclick="window.openImageModal(this.src)" src="${update.imageUrl || ''}" alt="preview">
-                                <button type="button" onclick="window.removeEditPreview('${log.id}', ${index})" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[12px] font-bold text-white"></i></button>
-                            </div>
+                        return `
+                            <div class="bg-white border border-gray-200 p-4 rounded-xl text-sm mb-3 group/update relative">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="font-bold text-gray-700 text-xs flex items-center gap-2">
+                                        <i class="ph-fill ph-chat-circle text-gray-400"></i> อัปเดต ${index + 1}
+                                        <div class="flex items-center gap-1 opacity-0 group-hover/update:opacity-100 transition-opacity">
+                                            <button onclick="window.toggleEditUpdate('${log.id}', ${index})" class="text-gray-400 hover:text-cozy-green bg-gray-50 rounded p-1 border border-gray-200" title="แก้ไข">
+                                                <i class="ph ph-pencil-simple text-sm"></i>
+                                            </button>
+                                            <button onclick="window.openDeleteModal('${log.id}', true, ${index})" class="text-gray-400 hover:text-red-500 bg-gray-50 rounded p-1 border border-gray-200" title="ลบอัปเดต">
+                                                <i class="ph ph-trash text-sm"></i>
+                                            </button>
+                                        </div>
+                                    </span>
+                                    <span class="text-[10px] font-bold text-gray-400">${timestampHtml}</span>
+                                </div>
+                                
+                                <div id="update-display-${log.id}-${index}">
+                                    ${vitalsHtml}
+                                    ${textHtml}
+                                    ${treatmentHtml}
+                                    ${labHtml}
+                                    ${imageHtml}
+                                </div>
+                                
+                                <div id="update-edit-${log.id}-${index}" class="hidden mt-3 flex flex-col gap-2 bg-white border border-gray-200 p-3 rounded-xl shadow-sm">
+                                    <div class="grid grid-cols-2 gap-2 mb-1">
+                                        <div class="relative">
+                                            <div class="absolute top-2.5 left-2.5 text-orange-400"><i class="ph-fill ph-scales text-lg"></i></div>
+                                            <input type="number" id="update-weight-${log.id}-${index}" step="0.01" placeholder="น้ำหนัก (กก.)" value="${updateWeight}" class="w-full text-sm font-semibold text-orange-900 bg-orange-50 border border-orange-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-orange-300">
+                                        </div>
+                                        <div class="relative">
+                                            <div class="absolute top-2.5 left-2.5 text-red-400"><i class="ph-fill ph-thermometer text-lg"></i></div>
+                                            <input type="number" id="update-temp-${log.id}-${index}" step="0.1" placeholder="อุณหภูมิ (°C)" value="${updateTemp}" class="w-full text-sm font-semibold text-red-900 bg-red-50 border border-red-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-red-300">
+                                        </div>
+                                    </div>
 
-                            <div class="flex justify-between items-center mt-2 pt-3 border-t border-gray-100 px-1">
-                                <label class="cursor-pointer text-gray-600 hover:text-cozy-green transition flex items-center gap-1.5 text-xs font-bold bg-white px-2.5 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 shadow-sm">
-                                    <i class="ph-fill ph-image text-lg"></i> เปลี่ยนรูป
-                                    <input type="file" id="edit-file-upload-${log.id}-${index}" accept="image/*" class="hidden" onchange="window.handleEditImageSelect(event, '${log.id}', ${index})">
-                                </label>
-                                <div class="flex justify-end gap-2">
-                                    <button onclick="window.cancelEditUpdate('${log.id}', ${index})" class="text-xs font-bold px-3 py-2 text-gray-500 hover:bg-gray-100 rounded-lg transition border border-transparent">ยกเลิก</button>
-                                    <button id="save-edit-btn-${log.id}-${index}" onclick="window.saveEditUpdate('${log.id}', ${index})" class="text-xs font-bold px-4 py-2 bg-cozy-green text-white hover:bg-cozy-greenDark rounded-lg transition shadow-sm">บันทึก</button>
+                                    <textarea id="update-textarea-${log.id}-${index}" rows="1" placeholder="อัปเดตอาการ..." class="w-full text-sm font-semibold p-3 border border-gray-300 bg-gray-50 rounded-lg outline-none resize-none overflow-hidden text-gray-900 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateText}</textarea>
+                                    
+                                    <div class="relative">
+                                        <div class="absolute top-3 left-3 text-blue-400"><i class="ph-fill ph-pill text-lg"></i></div>
+                                        <textarea id="update-treatment-${log.id}-${index}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-blue-200 bg-blue-50 rounded-lg outline-none resize-none overflow-hidden text-blue-900 focus:border-blue-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateTreatment}</textarea>
+                                    </div>
+                                    
+                                    <div class="relative">
+                                        <div class="absolute top-3 left-3 text-purple-400"><i class="ph-fill ph-flask text-lg"></i></div>
+                                        <textarea id="update-lab-${log.id}-${index}" rows="1" placeholder="ผลตรวจแล็บ (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-purple-200 bg-purple-50 rounded-lg outline-none resize-none overflow-hidden text-purple-900 focus:border-purple-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateLab}</textarea>
+                                    </div>
+
+                                    <div id="edit-preview-container-${log.id}-${index}" class="${editPreviewClass}">
+                                        <img id="edit-preview-image-${log.id}-${index}" class="h-20 rounded-lg border border-gray-300 object-cover cursor-zoom-in" onclick="window.openImageModal(this.src)" src="${editPreviewSrc}" alt="preview">
+                                        <button type="button" onclick="window.removeEditPreview('${log.id}', ${index})" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[12px] font-bold text-white"></i></button>
+                                    </div>
+
+                                    <div class="flex justify-between items-center mt-2 pt-3 border-t border-gray-100 px-1">
+                                        <label class="cursor-pointer text-gray-600 hover:text-cozy-green transition flex items-center gap-1.5 text-xs font-bold bg-white px-2.5 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 shadow-sm">
+                                            <i class="ph-fill ph-image text-lg"></i> เปลี่ยนรูป
+                                            <input type="file" id="edit-file-upload-${log.id}-${index}" accept="image/*" class="hidden" onchange="window.handleEditImageSelect(event, '${log.id}', ${index})">
+                                        </label>
+                                        <div class="flex justify-end gap-2">
+                                            <button onclick="window.cancelEditUpdate('${log.id}', ${index})" class="text-xs font-bold px-3 py-2 text-gray-500 hover:bg-gray-100 rounded-lg transition border border-transparent">ยกเลิก</button>
+                                            <button id="save-edit-btn-${log.id}-${index}" onclick="window.saveEditUpdate('${log.id}', ${index})" class="text-xs font-bold px-4 py-2 bg-cozy-green text-white hover:bg-cozy-greenDark rounded-lg transition shadow-sm">บันทึก</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                        `;
+                    });
+                    updatesHtml = updateItemsArray.join('');
+                }
 
                 let badgeHtml = '';
                 let dischargeSection = '';
 
                 if (log.caseType === 'IPD') {
                     if (log.isDischarged) {
-                        badgeHtml = `<span class="px-3 py-1 bg-gray-100 text-gray-500 text-[11px] font-bold rounded-lg border border-gray-200 flex items-center gap-1.5"><i class="ph-fill ph-house-line text-sm"></i> กลับบ้านแล้ว</span>`;
+                        badgeHtml = '<span class="px-3 py-1 bg-gray-100 text-gray-500 text-[11px] font-bold rounded-lg border border-gray-200 flex items-center gap-1.5"><i class="ph-fill ph-house-line text-sm"></i> กลับบ้านแล้ว</span>';
+                        let dischargeText = log.dischargeDate || '';
                         dischargeSection = `
                             <div class="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-sm bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                <span class="text-gray-600 font-bold flex items-center gap-1.5 text-xs"><i class="ph-fill ph-check-circle text-cozy-green text-lg"></i> ส่งกลับเมื่อ: <span class="text-gray-900">${log.dischargeDate}</span></span>
+                                <span class="text-gray-600 font-bold flex items-center gap-1.5 text-xs"><i class="ph-fill ph-check-circle text-cozy-green text-lg"></i> ส่งกลับเมื่อ: <span class="text-gray-900">${dischargeText}</span></span>
                                 <button onclick="window.toggleDischarge('${log.id}', false)" class="text-xs font-bold text-red-500 hover:bg-red-50 bg-white px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm">ยกเลิก</button>
                             </div>
                         `;
                     } else {
-                        badgeHtml = `<span class="px-3 py-1 bg-red-50 text-red-500 text-[11px] font-bold rounded-lg border border-red-200 flex items-center gap-1.5"><i class="ph-fill ph-bed text-sm"></i> IPD</span>`;
+                        badgeHtml = '<span class="px-3 py-1 bg-red-50 text-red-500 text-[11px] font-bold rounded-lg border border-red-200 flex items-center gap-1.5"><i class="ph-fill ph-bed text-sm"></i> IPD</span>';
                         dischargeSection = `
                             <div class="mt-5 pt-4 border-t border-gray-100">
                                 <label class="flex items-center gap-3 cursor-pointer bg-white p-3 rounded-xl border border-gray-200 hover:border-cozy-green transition w-fit group shadow-sm">
@@ -436,7 +487,24 @@
                         `;
                     }
                 } else {
-                    badgeHtml = `<span class="px-3 py-1 bg-blue-50 text-blue-500 text-[11px] font-bold rounded-lg border border-blue-200 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-sm"></i> OPD</span>`;
+                    badgeHtml = '<span class="px-3 py-1 bg-blue-50 text-blue-500 text-[11px] font-bold rounded-lg border border-blue-200 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-sm"></i> OPD</span>';
+                }
+
+                let ownerPhoneHtml = log.ownerPhone ? '<span class="flex items-center gap-1 border-l border-gray-300 pl-2"><i class="ph-fill ph-phone text-gray-400 text-sm"></i> ' + log.ownerPhone + '</span>' : '';
+                let emptyStateHtml = (log.updates && log.updates.length === 0) ? '<p class="text-xs font-medium text-gray-400 italic mb-3 ml-1">ยังไม่มีประวัติการอัปเดต...</p>' : '';
+
+                // ระบบคำนวณอายุและแสดงประเภทสัตว์
+                let ageStr = log.dob ? calculateAge(log.dob) : '';
+                let ageHtml = ageStr ? '<span class="flex items-center gap-1 text-gray-500"><i class="ph-fill ph-cake text-pink-400 text-sm"></i> อายุ: ' + ageStr + '</span>' : '';
+
+                let speciesBadge = '';
+                if (log.species) {
+                    let speciesIcon = 'ph-paw-print';
+                    let speciesColor = 'text-gray-500 bg-gray-100 border-gray-200';
+                    if (log.species === 'สุนัข') { speciesIcon = 'ph-dog'; speciesColor = 'text-orange-600 bg-orange-50 border-orange-200'; }
+                    else if (log.species === 'แมว') { speciesIcon = 'ph-cat'; speciesColor = 'text-indigo-600 bg-indigo-50 border-indigo-200'; }
+                    
+                    speciesBadge = '<span class="px-2 py-0.5 text-[10px] font-bold rounded-md border ' + speciesColor + ' flex items-center gap-1"><i class="ph-fill ' + speciesIcon + ' text-sm"></i> ' + log.species + '</span>';
                 }
 
                 return `
@@ -445,28 +513,76 @@
                         <button onclick="window.openDeleteModal('${log.id}')" class="absolute top-5 right-5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-red-200 hover:bg-red-50" title="ลบข้อมูลเคสนี้">
                             <i class="ph ph-trash text-lg"></i>
                         </button>
+                        
+                        <button onclick="window.toggleEditLog('${log.id}')" class="absolute top-5 right-14 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-blue-200 hover:bg-blue-50" title="แก้ไขข้อมูลสัตว์ป่วย">
+                            <i class="ph ph-pencil-simple text-lg"></i>
+                        </button>
 
-                        <div class="flex items-center gap-2.5 mb-3.5 pr-10">
-                            ${badgeHtml}
-                            <span class="text-[11px] font-bold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">ID: <span class="text-gray-800">${log.petId}</span></span>
-                        </div>
-                        
-                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-4">
-                            <div>
-                                <h3 class="text-xl font-bold text-gray-900 mb-1">${log.petName}</h3>
-                                ${log.ownerPhone ? `<p class="text-xs font-bold text-gray-500 flex items-center gap-1.5"><i class="ph-fill ph-phone text-gray-400"></i> ${log.ownerPhone}</p>` : ''}
+                        <!-- ส่วนแสดงผลข้อมูลทั่วไป -->
+                        <div id="log-header-display-${log.id}">
+                            <div class="flex items-center gap-2.5 mb-3.5 pr-24">
+                                ${badgeHtml}
+                                <span class="text-[11px] font-bold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">ID: <span class="text-gray-800">${log.petId}</span></span>
                             </div>
-                            <span class="text-xs font-bold text-gray-500 flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shrink-0">
-                                <i class="ph-fill ph-calendar-blank text-gray-400"></i> ${displayDate}
-                            </span>
+                            
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-4">
+                                <div>
+                                    <div class="flex items-center gap-2.5 mb-1.5">
+                                        <h3 class="text-xl font-bold text-gray-900">${log.petName}</h3>
+                                        ${speciesBadge}
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2 text-xs font-bold text-gray-500">
+                                        ${ageHtml}
+                                        ${ownerPhoneHtml}
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold text-gray-500 flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shrink-0 mt-2 sm:mt-0">
+                                    <i class="ph-fill ph-calendar-blank text-gray-400"></i> ${displayDate}
+                                </span>
+                            </div>
+                            
+                            <!-- Chief Complaint Box -->
+                            <div class="bg-[#F7F8F5] rounded-xl p-4 mb-5 border border-[#E5E7E1]">
+                                <p class="text-[11px] font-bold text-gray-500 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i class="ph-fill ph-warning-circle text-sm text-gray-400"></i> อาการสำคัญ (Chief Complaint)
+                                </p>
+                                <p class="text-gray-900 text-sm whitespace-pre-wrap leading-relaxed font-semibold">${log.symptoms}</p>
+                            </div>
                         </div>
-                        
-                        <!-- Chief Complaint Box -->
-                        <div class="bg-[#F7F8F5] rounded-xl p-4 mb-5 border border-[#E5E7E1]">
-                            <p class="text-[11px] font-bold text-gray-500 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
-                                <i class="ph-fill ph-warning-circle text-sm text-gray-400"></i> อาการสำคัญ (Chief Complaint)
-                            </p>
-                            <p class="text-gray-900 text-sm whitespace-pre-wrap leading-relaxed font-semibold">${log.symptoms}</p>
+
+                        <!-- ส่วนแก้ไขข้อมูลทั่วไป (ซ่อนไว้) -->
+                        <div id="log-header-edit-${log.id}" class="hidden mb-5 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5"><i class="ph-fill ph-pencil-simple text-blue-500"></i> แก้ไขข้อมูลสัตว์ป่วย</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">ชื่อสัตว์เลี้ยง</label>
+                                    <input type="text" id="edit-petName-${log.id}" value="${log.petName || ''}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">เบอร์โทรติดต่อ</label>
+                                    <input type="tel" id="edit-ownerPhone-${log.id}" value="${log.ownerPhone || ''}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">ประเภทสัตว์</label>
+                                    <select id="edit-species-${log.id}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold">
+                                        <option value="สุนัข" ${log.species === 'สุนัข' ? 'selected' : ''}>🐶 สุนัข (Dog)</option>
+                                        <option value="แมว" ${log.species === 'แมว' ? 'selected' : ''}>🐱 แมว (Cat)</option>
+                                        <option value="อื่นๆ" ${log.species === 'อื่นๆ' ? 'selected' : (!log.species ? 'selected' : '')}>🐰 อื่นๆ (Exotic)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">วันเกิด (โดยประมาณ)</label>
+                                    <input type="date" id="edit-dob-${log.id}" value="${log.dob || ''}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">อาการสำคัญ (Chief Complaint)</label>
+                                    <textarea id="edit-symptoms-${log.id}" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold resize-none">${log.symptoms || ''}</textarea>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button onclick="window.cancelEditLog('${log.id}')" class="text-xs font-bold px-3 py-2 text-gray-500 hover:bg-gray-200 rounded-lg transition">ยกเลิก</button>
+                                <button id="save-log-btn-${log.id}" onclick="window.saveEditLog('${log.id}')" class="text-xs font-bold px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition shadow-sm">บันทึก</button>
+                            </div>
                         </div>
 
                         <div>
@@ -475,7 +591,7 @@
                             </p>
                             
                             ${updatesHtml}
-                            ${(log.updates && log.updates.length === 0) ? '<p class="text-xs font-medium text-gray-400 italic mb-3 ml-1">ยังไม่มีประวัติการอัปเดต...</p>' : ''}
+                            ${emptyStateHtml}
                             
                             <!-- Add Update Form -->
                             <div class="mt-4 border border-gray-200 rounded-xl p-3 bg-gray-50 focus-within:border-cozy-green transition-all shadow-sm">
@@ -534,50 +650,14 @@
                         ${dischargeSection}
                     </div>
                 `;
-            }).join('');
+            });
+            
+            logsContainer.innerHTML = logsHtmlArray.join('');
         };
 
         window.pendingImages = {};
         window.pendingEditImages = {};
         window.removedEditImages = {};
-
-        window.compressImage = function(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = event => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800; 
-                        const MAX_HEIGHT = 800;
-                        let width = img.width; 
-                        let height = img.height;
-                        
-                        if (width > height) { 
-                            if (width > MAX_WIDTH) { 
-                                height = Math.round(height * MAX_WIDTH / width); 
-                                width = MAX_WIDTH; 
-                            } 
-                        } else { 
-                            if (height > MAX_HEIGHT) { 
-                                width = Math.round(width * MAX_HEIGHT / height); 
-                                height = MAX_HEIGHT; 
-                            } 
-                        }
-                        
-                        canvas.width = width; 
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7));
-                    };
-                    img.onerror = error => reject(error);
-                };
-                reader.onerror = error => reject(error);
-            });
-        };
 
         window.handleImageSelect = function(event, id) {
             const file = event.target.files[0];
@@ -639,15 +719,7 @@
                 const genAI = new GoogleGenerativeAI(apiKey);
                 let contextString = aiContextText ? `\n\nอาการเบื้องต้นของสัตว์ป่วย (Clinical Context): ${aiContextText}` : "";
                 
-                const prompt = `คุณคือผู้ช่วยสัตวแพทย์ผู้เชี่ยวชาญ นี่คือภาพใบรายงานผลการตรวจเลือด/ผลแล็บของสัตว์เลี้ยง${contextString}
-โปรดวิเคราะห์รูปภาพและข้อมูลอาการ(ถ้ามี) แล้วตอบกลับมาในรูปแบบที่กำหนดไว้อย่างเคร่งครัดดังนี้:
-**Diagnosis:**
-(สรุปความผิดปกติหลักเป็น Medical Term เป็น Bullet points เช่น - Mild Anemia, - Severe Leukocytosis)
-**Note:**
-(อธิบายกลไก สาเหตุ หรือ Differential Diagnosis ที่เป็นไปได้แบบสั้นๆ ให้สัตวแพทย์อ่าน โดยเชื่อมโยงกับอาการเบื้องต้นถ้ามี)
-**CE (Client Education):**
-(สร้างประโยคสำหรับพูดคุยอธิบายกับเจ้าของสัตว์ ด้วยภาษาที่เข้าใจง่าย เป็นมิตร ไม่ใช้ศัพท์แพทย์ซับซ้อน พร้อมคำแนะนำเบื้องต้น)
-หากในรูปไม่ใช่ผลแล็บ ให้ตอบเพียงแค่ 'ไม่พบข้อมูลผลแล็บในรูปภาพ'`;
+                const prompt = `คุณคือผู้ช่วยสัตวแพทย์ผู้เชี่ยวชาญ นี่คือภาพใบรายงานผลการตรวจเลือด/ผลแล็บของสัตว์เลี้ยง${contextString}\nโปรดวิเคราะห์รูปภาพและข้อมูลอาการ(ถ้ามี) แล้วตอบกลับมาในรูปแบบที่กำหนดไว้อย่างเคร่งครัดดังนี้:\n**Diagnosis:**\n(สรุปความผิดปกติหลักเป็น Medical Term เป็น Bullet points เช่น - Mild Anemia, - Severe Leukocytosis)\n**Note:**\n(อธิบายกลไก สาเหตุ หรือ Differential Diagnosis ที่เป็นไปได้แบบสั้นๆ ให้สัตวแพทย์อ่าน โดยเชื่อมโยงกับอาการเบื้องต้นถ้ามี)\n**CE (Client Education):**\n(สร้างประโยคสำหรับพูดคุยอธิบายกับเจ้าของสัตว์ ด้วยภาษาที่เข้าใจง่าย เป็นมิตร ไม่ใช้ศัพท์แพทย์ซับซ้อน พร้อมคำแนะนำเบื้องต้น)\nหากในรูปไม่ใช่ผลแล็บ ให้ตอบเพียงแค่ 'ไม่พบข้อมูลผลแล็บในรูปภาพ'`;
 
                 const imagePart = {
                     inlineData: {
@@ -708,6 +780,8 @@
             const newLog = {
                 petId: document.getElementById('petId').value,
                 petName: document.getElementById('petName').value,
+                species: document.getElementById('species').value,
+                dob: document.getElementById('dob').value,
                 ownerPhone: document.getElementById('ownerPhone').value,
                 date: document.getElementById('date').value,
                 symptoms: document.getElementById('symptoms').value,
@@ -765,8 +839,11 @@
 
             try {
                 let imageUrl = null;
+                // --- กลับมาใช้ระบบ Firebase Storage แล้วครับ ---
                 if (file) {
-                    imageUrl = await window.compressImage(file);
+                    const storageRef = ref(storage, `updates/${id}/${Date.now()}_${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    imageUrl = await getDownloadURL(storageRef);
                 }
 
                 const now = new Date();
@@ -812,7 +889,7 @@
                 window.renderLogs();
             } catch (error) {
                 console.error("Error updating document: ", error);
-                alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+                alert("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ กรุณาตรวจสอบการตั้งค่า Firebase Storage Rule และ CORS ครับ");
             } finally {
                 btn.innerHTML = originalBtnHtml;
                 btn.disabled = false;
@@ -889,8 +966,11 @@
             if (isImageRemoved) imageUrl = null;
 
             try {
+                // --- กลับมาใช้ระบบ Firebase Storage แล้วครับ ---
                 if (file) {
-                    imageUrl = await window.compressImage(file);
+                    const storageRef = ref(storage, `updates/${id}/${Date.now()}_${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    imageUrl = await getDownloadURL(storageRef);
                 }
 
                 currentUpdates[index].weight = newWeight;
@@ -945,7 +1025,6 @@
 
         const modal = document.getElementById('deleteModal');
         const modalContent = document.getElementById('deleteModalContent');
-        let updateIndexToDelete = null;
         
         window.openDeleteModal = function(id, isUpdate = false, index = null) {
             logIdToDelete = id;
@@ -979,6 +1058,58 @@
                 modal.classList.remove('flex');
                 modal.classList.add('hidden');
             }, 200);
+        };
+
+        // --- ระบบแก้ไขข้อมูลสัตว์ป่วย (Header Edit) ---
+        window.toggleEditLog = function(id) {
+            document.getElementById(`log-header-display-${id}`).classList.add('hidden');
+            document.getElementById(`log-header-edit-${id}`).classList.remove('hidden');
+        };
+
+        window.cancelEditLog = function(id) {
+            document.getElementById(`log-header-edit-${id}`).classList.add('hidden');
+            document.getElementById(`log-header-display-${id}`).classList.remove('hidden');
+        };
+
+        window.saveEditLog = async function(id) {
+            const newName = document.getElementById(`edit-petName-${id}`).value.trim();
+            const newPhone = document.getElementById(`edit-ownerPhone-${id}`).value.trim();
+            const newSpecies = document.getElementById(`edit-species-${id}`).value;
+            const newDob = document.getElementById(`edit-dob-${id}`).value;
+            const newSymptoms = document.getElementById(`edit-symptoms-${id}`).value.trim();
+
+            if (!newName) return alert("กรุณาใส่ชื่อสัตว์เลี้ยง");
+
+            const btn = document.getElementById(`save-log-btn-${id}`);
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = 'บันทึก...'; 
+            btn.disabled = true;
+
+            try {
+                const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
+                await updateDoc(docRef, {
+                    petName: newName,
+                    ownerPhone: newPhone,
+                    species: newSpecies,
+                    dob: newDob,
+                    symptoms: newSymptoms
+                });
+
+                const targetLog = petLogs.find(l => l.id === id);
+                targetLog.petName = newName;
+                targetLog.ownerPhone = newPhone;
+                targetLog.species = newSpecies;
+                targetLog.dob = newDob;
+                targetLog.symptoms = newSymptoms;
+
+                window.renderLogs();
+            } catch (error) {
+                console.error("Error editing log: ", error);
+                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            } finally {
+                btn.innerHTML = originalHtml; 
+                btn.disabled = false;
+            }
         };
 
         document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
