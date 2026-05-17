@@ -253,7 +253,6 @@
 
         let petLogs = [];
         let logIdToDelete = null;
-        let updateIndexToDelete = null;
 
         const form = document.getElementById('logForm');
         const logsContainer = document.getElementById('logsContainer');
@@ -365,22 +364,30 @@
                 if (log.updates && log.updates.length > 0) {
                     const updateItemsArray = log.updates.map((update, index) => {
                         
+                        // ===== DESIGN UPDATES: Minimal Earth Tone (White box + Colored Left Border) =====
                         let vitalsHtml = '';
                         if (update.weight || update.temp) {
-                            let wHtml = update.weight ? '<span class="px-2.5 py-1.5 bg-orange-50 text-orange-700 text-xs font-bold rounded-lg border border-orange-100 flex items-center gap-1"><i class="ph-fill ph-scales text-orange-500"></i> ' + update.weight + ' kg</span>' : '';
-                            let tHtml = update.temp ? '<span class="px-2.5 py-1.5 bg-red-50 text-red-700 text-xs font-bold rounded-lg border border-red-100 flex items-center gap-1"><i class="ph-fill ph-thermometer text-red-500"></i> ' + update.temp + ' °C</span>' : '';
+                            let wHtml = update.weight ? '<span class="px-2.5 py-1 text-[11px] font-bold rounded-md bg-stone-50 text-stone-600 border border-stone-200 flex items-center gap-1"><i class="ph-fill ph-scales text-stone-400"></i> ' + update.weight + ' kg</span>' : '';
+                            let tHtml = update.temp ? '<span class="px-2.5 py-1 text-[11px] font-bold rounded-md bg-stone-50 text-stone-600 border border-stone-200 flex items-center gap-1"><i class="ph-fill ph-thermometer text-rose-400/70"></i> ' + update.temp + ' °C</span>' : '';
                             vitalsHtml = '<div class="flex flex-wrap gap-2 mb-3">' + wHtml + tHtml + '</div>';
                         }
 
-                        let textHtml = update.text ? '<div class="mb-3"><p class="text-gray-500 text-[10px] font-bold mb-0.5 flex items-center gap-1 uppercase tracking-wide">History (Hx)</p><p class="text-gray-800 whitespace-pre-wrap leading-relaxed font-semibold mb-2">' + update.text + '</p></div>' : '';
-                        let peHtml = update.pe ? '<div class="bg-teal-50 border border-teal-100 rounded-lg p-2.5 mb-2"><p class="text-teal-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-teal-500"></i> Physical Exam (PE)</p><p class="text-teal-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.pe + '</p></div>' : '';
-                        let ddxHtml = update.diffDiag ? '<div class="bg-yellow-50 border border-yellow-100 rounded-lg p-2.5 mb-2"><p class="text-yellow-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-list-magnifying-glass text-yellow-500"></i> Diff. Diagnosis</p><p class="text-yellow-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.diffDiag + '</p></div>' : '';
-                        let dxHtml = update.finalDiag ? '<div class="bg-green-50 border border-green-100 rounded-lg p-2.5 mb-2"><p class="text-green-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-check-circle text-green-500"></i> Final Diagnosis (Dx)</p><p class="text-green-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.finalDiag + '</p></div>' : '';
-                        let treatmentHtml = update.treatment ? '<div class="bg-blue-50 border border-blue-100 rounded-lg p-2.5 mb-2"><p class="text-blue-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-blue-500"></i> การรักษา / ยาที่จ่าย</p><p class="text-blue-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.treatment + '</p></div>' : '';
-                        let labHtml = update.labResult ? '<div class="bg-purple-50 border border-purple-100 rounded-lg p-3 mb-2"><p class="text-purple-800 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-purple-500 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-purple-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.labResult + '</p></div>' : '';
-                        let ceHtml = update.ce ? '<div class="bg-pink-50 border border-pink-100 rounded-lg p-2.5 mb-2"><p class="text-pink-800 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-pink-500"></i> Client Education (CE)</p><p class="text-pink-900 whitespace-pre-wrap leading-relaxed text-sm font-semibold">' + update.ce + '</p></div>' : '';
+                        let textHtml = update.text ? '<div class="mb-3"><p class="text-gray-400 text-[10px] font-bold mb-1 flex items-center gap-1 uppercase tracking-wide">History (Hx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.text + '</p></div>' : '';
                         
-                        // ปลอดภัยชัวร์ด้วย this.src 
+                        const boxBase = "bg-white border border-gray-100 shadow-sm rounded-xl p-3 mb-2 border-l-4";
+                        
+                        let peHtml = update.pe ? '<div class="' + boxBase + ' border-l-stone-400"><p class="text-stone-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-stone-400 text-sm"></i> Physical Exam (PE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.pe + '</p></div>' : '';
+                        
+                        let ddxHtml = update.diffDiag ? '<div class="' + boxBase + ' border-l-amber-400/80"><p class="text-amber-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-list-magnifying-glass text-amber-500/80 text-sm"></i> Diff. Diagnosis</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.diffDiag + '</p></div>' : '';
+                        
+                        let dxHtml = update.finalDiag ? '<div class="' + boxBase + ' border-l-[#748E63]"><p class="text-[#5B734C] text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-check-circle text-[#748E63] text-sm"></i> Final Diagnosis (Dx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.finalDiag + '</p></div>' : '';
+                        
+                        let treatmentHtml = update.treatment ? '<div class="' + boxBase + ' border-l-sky-400/80"><p class="text-sky-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-sky-500/80 text-sm"></i> การรักษา / ยาที่จ่าย</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.treatment + '</p></div>' : '';
+                        
+                        let labHtml = update.labResult ? '<div class="' + boxBase + ' border-l-violet-400/70"><p class="text-violet-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-flask text-violet-400/80 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.labResult + '</p></div>' : '';
+                        
+                        let ceHtml = update.ce ? '<div class="' + boxBase + ' border-l-rose-400/70"><p class="text-rose-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-rose-400/80 text-sm"></i> Client Education (CE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.ce + '</p></div>' : '';
+                        
                         let imageHtml = update.imageUrl ? '<img src="' + update.imageUrl + '" onclick="window.openImageModal(this.src)" class="mt-2 rounded-xl max-h-48 border border-gray-200 object-cover hover:opacity-90 transition cursor-zoom-in shadow-sm" alt="ภาพอัปเดต">' : '';
 
                         let timestampHtml = update.timestamp || '';
@@ -429,45 +436,45 @@
                                 <div id="update-edit-${log.id}-${index}" class="hidden mt-3 flex flex-col gap-2 bg-white border border-gray-200 p-3 rounded-xl shadow-sm">
                                     <div class="grid grid-cols-2 gap-2 mb-1">
                                         <div class="relative">
-                                            <div class="absolute top-2.5 left-2.5 text-orange-400"><i class="ph-fill ph-scales text-lg"></i></div>
-                                            <input type="number" id="update-weight-${log.id}-${index}" step="0.01" placeholder="น้ำหนัก (กก.)" value="${updateWeight}" class="w-full text-sm font-semibold text-orange-900 bg-orange-50 border border-orange-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-orange-300">
+                                            <div class="absolute top-2.5 left-3 text-gray-400"><i class="ph-fill ph-scales text-base"></i></div>
+                                            <input type="number" id="update-weight-${log.id}-${index}" step="0.01" placeholder="น้ำหนัก (กก.)" value="${updateWeight}" class="w-full text-sm font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2 pr-2 pl-9 outline-none focus:border-cozy-green focus:bg-white transition">
                                         </div>
                                         <div class="relative">
-                                            <div class="absolute top-2.5 left-2.5 text-red-400"><i class="ph-fill ph-thermometer text-lg"></i></div>
-                                            <input type="number" id="update-temp-${log.id}-${index}" step="0.1" placeholder="อุณหภูมิ (°C)" value="${updateTemp}" class="w-full text-sm font-semibold text-red-900 bg-red-50 border border-red-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-red-300">
+                                            <div class="absolute top-2.5 left-3 text-gray-400"><i class="ph-fill ph-thermometer text-base"></i></div>
+                                            <input type="number" id="update-temp-${log.id}-${index}" step="0.1" placeholder="อุณหภูมิ (°C)" value="${updateTemp}" class="w-full text-sm font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2 pr-2 pl-9 outline-none focus:border-cozy-green focus:bg-white transition">
                                         </div>
                                     </div>
 
-                                    <textarea id="update-textarea-${log.id}-${index}" rows="1" placeholder="History (Hx) / ประวัติอาการ..." class="w-full text-sm font-semibold p-3 border border-gray-300 bg-gray-50 rounded-lg outline-none resize-none overflow-hidden text-gray-900 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateText}</textarea>
+                                    <textarea id="update-textarea-${log.id}-${index}" rows="1" placeholder="History (Hx) / ประวัติอาการ..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-3 outline-none resize-none overflow-hidden placeholder:text-gray-400 mb-2 focus:border-cozy-green focus:bg-white transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateText}</textarea>
                                     
-                                    <div class="relative">
-                                        <div class="absolute top-3 left-3 text-teal-400"><i class="ph-fill ph-stethoscope text-lg"></i></div>
-                                        <textarea id="update-pe-${log.id}-${index}" rows="1" placeholder="Physical Examination (PE)..." class="w-full text-sm font-semibold p-3 pl-10 border border-teal-200 bg-teal-50 rounded-lg outline-none resize-none overflow-hidden text-teal-900 focus:border-teal-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updatePe}</textarea>
+                                    <div class="relative mb-2">
+                                        <div class="absolute top-2.5 left-3 text-stone-400"><i class="ph-fill ph-stethoscope text-base"></i></div>
+                                        <textarea id="update-pe-${log.id}-${index}" rows="1" placeholder="Physical Examination (PE)..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-stone-400 focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updatePe}</textarea>
                                     </div>
 
-                                    <div class="relative">
-                                        <div class="absolute top-3 left-3 text-yellow-500"><i class="ph-fill ph-list-magnifying-glass text-lg"></i></div>
-                                        <textarea id="update-ddx-${log.id}-${index}" rows="1" placeholder="Diff. Diagnosis (DDx)..." class="w-full text-sm font-semibold p-3 pl-10 border border-yellow-200 bg-yellow-50 rounded-lg outline-none resize-none overflow-hidden text-yellow-900 focus:border-yellow-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateDiffDiag}</textarea>
+                                    <div class="relative mb-2">
+                                        <div class="absolute top-2.5 left-3 text-amber-500/80"><i class="ph-fill ph-list-magnifying-glass text-base"></i></div>
+                                        <textarea id="update-ddx-${log.id}-${index}" rows="1" placeholder="Diff. Diagnosis (DDx)..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-amber-400 focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateDiffDiag}</textarea>
                                     </div>
 
-                                    <div class="relative">
-                                        <div class="absolute top-3 left-3 text-green-500"><i class="ph-fill ph-check-circle text-lg"></i></div>
-                                        <textarea id="update-dx-${log.id}-${index}" rows="1" placeholder="Final Diagnosis (Dx)..." class="w-full text-sm font-semibold p-3 pl-10 border border-green-200 bg-green-50 rounded-lg outline-none resize-none overflow-hidden text-green-900 focus:border-green-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateFinalDiag}</textarea>
+                                    <div class="relative mb-2">
+                                        <div class="absolute top-2.5 left-3 text-[#748E63]"><i class="ph-fill ph-check-circle text-base"></i></div>
+                                        <textarea id="update-dx-${log.id}-${index}" rows="1" placeholder="Final Diagnosis (Dx)..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-[#748E63] focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateFinalDiag}</textarea>
                                     </div>
 
-                                    <div class="relative">
-                                        <div class="absolute top-3 left-3 text-blue-400"><i class="ph-fill ph-pill text-lg"></i></div>
-                                        <textarea id="update-treatment-${log.id}-${index}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-blue-200 bg-blue-50 rounded-lg outline-none resize-none overflow-hidden text-blue-900 focus:border-blue-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateTreatment}</textarea>
+                                    <div class="relative mb-2">
+                                        <div class="absolute top-2.5 left-3 text-sky-500/80"><i class="ph-fill ph-pill text-base"></i></div>
+                                        <textarea id="update-treatment-${log.id}-${index}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-sky-400 focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateTreatment}</textarea>
                                     </div>
                                     
-                                    <div class="relative">
-                                        <div class="absolute top-3 left-3 text-purple-400"><i class="ph-fill ph-flask text-lg"></i></div>
-                                        <textarea id="update-lab-${log.id}-${index}" rows="1" placeholder="ผลตรวจแล็บ (ถ้ามี)..." class="w-full text-sm font-semibold p-3 pl-10 border border-purple-200 bg-purple-50 rounded-lg outline-none resize-none overflow-hidden text-purple-900 focus:border-purple-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateLab}</textarea>
+                                    <div class="relative mb-2">
+                                        <div class="absolute top-2.5 left-3 text-violet-400"><i class="ph-fill ph-flask text-base"></i></div>
+                                        <textarea id="update-lab-${log.id}-${index}" rows="1" placeholder="ผลตรวจแล็บ (ถ้ามี)..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-violet-400 focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateLab}</textarea>
                                     </div>
 
-                                    <div class="relative">
-                                        <div class="absolute top-3 left-3 text-pink-400"><i class="ph-fill ph-chat-circle-text text-lg"></i></div>
-                                        <textarea id="update-ce-${log.id}-${index}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-sm font-semibold p-3 pl-10 border border-pink-200 bg-pink-50 rounded-lg outline-none resize-none overflow-hidden text-pink-900 focus:border-pink-400 transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateCe}</textarea>
+                                    <div class="relative mb-2">
+                                        <div class="absolute top-2.5 left-3 text-rose-400/80"><i class="ph-fill ph-chat-circle-text text-base"></i></div>
+                                        <textarea id="update-ce-${log.id}-${index}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-rose-400 focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateCe}</textarea>
                                     </div>
 
                                     <div id="edit-preview-container-${log.id}-${index}" class="${editPreviewClass}">
@@ -622,55 +629,55 @@
                             ${updatesHtml}
                             ${emptyStateHtml}
                             
-                            <!-- Add Update Form -->
-                            <div class="mt-4 border border-gray-200 rounded-xl p-3 bg-gray-50 focus-within:border-cozy-green transition-all shadow-sm">
+                            <!-- Add Update Form (Soft Muted Colors) -->
+                            <div class="mt-4 border border-gray-200 rounded-xl p-3 bg-[#F7F8F5] focus-within:border-cozy-green transition-all shadow-sm">
                                 
                                 <div class="grid grid-cols-2 gap-2 mb-2">
                                     <div class="relative">
-                                        <div class="absolute top-2 left-2 text-orange-400"><i class="ph-fill ph-scales text-lg"></i></div>
-                                        <input type="number" id="new-weight-${log.id}" step="0.01" placeholder="น้ำหนัก (กก.)" class="w-full text-sm font-semibold text-orange-900 bg-orange-50 border border-orange-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-orange-300 transition">
+                                        <div class="absolute top-2.5 left-3 text-gray-400"><i class="ph-fill ph-scales text-base"></i></div>
+                                        <input type="number" id="new-weight-${log.id}" step="0.01" placeholder="น้ำหนัก (กก.)" class="w-full text-sm font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-cozy-green transition shadow-sm">
                                     </div>
                                     <div class="relative">
-                                        <div class="absolute top-2 left-2 text-red-400"><i class="ph-fill ph-thermometer text-lg"></i></div>
-                                        <input type="number" id="new-temp-${log.id}" step="0.1" placeholder="อุณหภูมิ (°C)" class="w-full text-sm font-semibold text-red-900 bg-red-50 border border-red-100 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-red-300 transition">
+                                        <div class="absolute top-2.5 left-3 text-gray-400"><i class="ph-fill ph-thermometer text-base"></i></div>
+                                        <input type="number" id="new-temp-${log.id}" step="0.1" placeholder="อุณหภูมิ (°C)" class="w-full text-sm font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-2 pl-9 outline-none focus:border-cozy-green transition shadow-sm">
                                     </div>
                                 </div>
 
-                                <textarea id="new-update-${log.id}" rows="1" placeholder="History (Hx) / ประวัติอาการ..." class="w-full text-sm font-semibold text-gray-900 bg-transparent border border-gray-300 rounded-lg py-2.5 px-3 outline-none resize-none overflow-hidden placeholder:text-gray-400 mb-2 focus:border-cozy-green transition" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                <textarea id="new-update-${log.id}" rows="1" placeholder="History (Hx) / ประวัติอาการ..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 px-3 outline-none resize-none overflow-hidden placeholder:text-gray-400 mb-2 focus:border-cozy-green transition shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 
                                 <div class="relative mb-2">
-                                    <div class="absolute top-2 left-2 text-teal-400"><i class="ph-fill ph-stethoscope text-lg"></i></div>
-                                    <textarea id="new-pe-${log.id}" rows="1" placeholder="Physical Examination (PE)..." class="w-full text-sm font-semibold text-teal-900 bg-teal-50 border border-teal-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-teal-400 transition focus:border-teal-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                    <div class="absolute top-2.5 left-3 text-stone-400"><i class="ph-fill ph-stethoscope text-base"></i></div>
+                                    <textarea id="new-pe-${log.id}" rows="1" placeholder="Physical Examination (PE)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-stone-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
 
                                 <div class="relative mb-2">
-                                    <div class="absolute top-2 left-2 text-yellow-500"><i class="ph-fill ph-list-magnifying-glass text-lg"></i></div>
-                                    <textarea id="new-ddx-${log.id}" rows="1" placeholder="Diff. Diagnosis (DDx)..." class="w-full text-sm font-semibold text-yellow-900 bg-yellow-50 border border-yellow-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-yellow-400 transition focus:border-yellow-400" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                    <div class="absolute top-2.5 left-3 text-amber-500/80"><i class="ph-fill ph-list-magnifying-glass text-base"></i></div>
+                                    <textarea id="new-ddx-${log.id}" rows="1" placeholder="Diff. Diagnosis (DDx)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-amber-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
 
                                 <div class="relative mb-2">
-                                    <div class="absolute top-2 left-2 text-green-500"><i class="ph-fill ph-check-circle text-lg"></i></div>
-                                    <textarea id="new-dx-${log.id}" rows="1" placeholder="Final Diagnosis (Dx)..." class="w-full text-sm font-semibold text-green-900 bg-green-50 border border-green-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-green-400 transition focus:border-green-400" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                    <div class="absolute top-2.5 left-3 text-[#748E63]"><i class="ph-fill ph-check-circle text-base"></i></div>
+                                    <textarea id="new-dx-${log.id}" rows="1" placeholder="Final Diagnosis (Dx)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-[#748E63] shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
 
                                 <div class="relative mb-2">
-                                    <div class="absolute top-2 left-2 text-blue-400"><i class="ph-fill ph-pill text-lg"></i></div>
-                                    <textarea id="new-treatment-${log.id}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-sm font-semibold text-blue-900 bg-blue-50 border border-blue-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-blue-400 transition focus:border-blue-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                    <div class="absolute top-2.5 left-3 text-sky-500/80"><i class="ph-fill ph-pill text-base"></i></div>
+                                    <textarea id="new-treatment-${log.id}" rows="1" placeholder="การรักษา / ยาที่จ่าย (ถ้ามี)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-sky-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
                                 
                                 <div class="relative mb-2">
-                                    <div class="absolute top-2 left-2 text-purple-400"><i class="ph-fill ph-flask text-lg"></i></div>
-                                    <textarea id="new-lab-${log.id}" rows="1" placeholder="ผลตรวจแล็บ (พิมพ์เองหรือใช้ AI ช่วยอ่าน)..." class="w-full text-sm font-semibold text-purple-900 bg-purple-50 border border-purple-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-purple-400 transition focus:border-purple-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                    <div class="absolute top-2.5 left-3 text-violet-400"><i class="ph-fill ph-flask text-base"></i></div>
+                                    <textarea id="new-lab-${log.id}" rows="1" placeholder="ผลตรวจแล็บ (พิมพ์เองหรือใช้ AI ช่วยอ่าน)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-violet-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
 
                                 <div class="relative mb-2">
-                                    <div class="absolute top-2 left-2 text-pink-400"><i class="ph-fill ph-chat-circle-text text-lg"></i></div>
-                                    <textarea id="new-ce-${log.id}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-sm font-semibold text-pink-900 bg-pink-50 border border-pink-100 rounded-lg py-2.5 pr-2 pl-9 outline-none resize-none overflow-hidden placeholder:text-pink-400 transition focus:border-pink-300" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                    <div class="absolute top-2.5 left-3 text-rose-400/80"><i class="ph-fill ph-chat-circle-text text-base"></i></div>
+                                    <textarea id="new-ce-${log.id}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-rose-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
 
                                 <div id="preview-container-${log.id}" class="hidden mt-2 relative w-fit px-1">
                                     <img id="preview-image-${log.id}" class="h-20 rounded-lg border border-gray-200 object-cover cursor-zoom-in" src="" alt="preview" onclick="window.openImageModal(this.src)">
-                                    <button type="button" onclick="window.removePreview('${log.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[10px] font-bold text-white"></i></button>
+                                    <button type="button" onclick="window.removePreview('${log.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[10px] font-bold text-white"></i></button>
                                 </div>
 
                                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mt-3 border-t border-gray-100 pt-3 px-1 gap-3">
@@ -717,7 +724,6 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        // ปรับขนาดรูปเป็น 800px และ Quality 80% เพื่อความคมชัด
                         const MAX_WIDTH = 800; 
                         const MAX_HEIGHT = 800;
                         let width = img.width; 
@@ -931,7 +937,6 @@
 
             try {
                 let imageUrl = null;
-                // กลับมาใช้ฟังก์ชันบีบอัดภาพ (Compress Image) ไม่ใช้ Storage
                 if (file) {
                     imageUrl = await window.compressImage(file);
                 }
@@ -964,29 +969,14 @@
 
                 targetLog.updates.push(newUpdateObj);
 
-                document.getElementById(`new-weight-${id}`).value = '';
-                document.getElementById(`new-temp-${id}`).value = '';
+                if (document.getElementById(`new-weight-${id}`)) document.getElementById(`new-weight-${id}`).value = '';
+                if (document.getElementById(`new-temp-${id}`)) document.getElementById(`new-temp-${id}`).value = '';
                 
-                const textarea = document.getElementById(`new-update-${id}`);
-                if(textarea) { textarea.value = ''; textarea.style.height = 'auto'; }
-                
-                const peArea = document.getElementById(`new-pe-${id}`);
-                if(peArea) { peArea.value = ''; peArea.style.height = 'auto'; }
-
-                const ddxArea = document.getElementById(`new-ddx-${id}`);
-                if(ddxArea) { ddxArea.value = ''; ddxArea.style.height = 'auto'; }
-
-                const dxArea = document.getElementById(`new-dx-${id}`);
-                if(dxArea) { dxArea.value = ''; dxArea.style.height = 'auto'; }
-                
-                const treatmentArea = document.getElementById(`new-treatment-${id}`);
-                if(treatmentArea) { treatmentArea.value = ''; treatmentArea.style.height = 'auto'; }
-                
-                const labArea = document.getElementById(`new-lab-${id}`);
-                if(labArea) { labArea.value = ''; labArea.style.height = 'auto'; }
-                
-                const ceArea = document.getElementById(`new-ce-${id}`);
-                if(ceArea) { ceArea.value = ''; ceArea.style.height = 'auto'; }
+                const fieldsToClear = ['update', 'pe', 'ddx', 'dx', 'treatment', 'lab', 'ce'];
+                fieldsToClear.forEach(field => {
+                    const el = document.getElementById(`new-${field}-${id}`);
+                    if(el) { el.value = ''; el.style.height = 'auto'; }
+                });
 
                 const aiContextInput = document.getElementById(`ai-context-${id}`);
                 if (aiContextInput) aiContextInput.value = '';
@@ -1076,7 +1066,6 @@
             if (isImageRemoved) imageUrl = null;
 
             try {
-                // กลับมาใช้ฟังก์ชันบีบอัดภาพ (Compress Image) ไม่ใช้ Storage
                 if (file) {
                     imageUrl = await window.compressImage(file);
                 }
