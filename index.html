@@ -8,6 +8,9 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Chart.js สำหรับวาดกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- ตั้งค่า ธีมสี เอิร์ธโทน (Earth Tone) สบายตา -->
     <script>
         tailwind.config = {
@@ -184,6 +187,44 @@
         </div>
     </div>
 
+    <!-- Chart Modal -->
+    <div id="chartModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] mx-4 shadow-2xl flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="ph-fill ph-trend-up text-blue-500 text-xl"></i> กราฟแนวโน้มค่าเลือด (Lab Trends)</h3>
+                <button onclick="window.closeChartModal()" class="text-gray-400 hover:text-red-500 bg-white rounded-full p-1.5 border border-gray-200 transition shadow-sm">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+                <!-- กราฟที่ 1: RBC Panel -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <h4 class="text-sm font-bold text-red-600 mb-3 text-center border-b border-gray-100 pb-2">🔴 RBC Panel (Hct, MCV, MCHC)</h4>
+                    <div class="h-64 relative w-full">
+                        <canvas id="chart-rbc"></canvas>
+                    </div>
+                </div>
+
+                <!-- กราฟที่ 2: WBC & PLT Panel -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <h4 class="text-sm font-bold text-purple-600 mb-3 text-center border-b border-gray-100 pb-2">🟣 WBC & PLT Panel</h4>
+                    <div class="h-64 relative w-full">
+                        <canvas id="chart-wbc-plt"></canvas>
+                    </div>
+                </div>
+
+                <!-- กราฟที่ 3: Liver & Kidney Panel -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <h4 class="text-sm font-bold text-green-600 mb-3 text-center border-b border-gray-100 pb-2">🟢 Liver & Kidney Panel</h4>
+                    <div class="h-64 relative w-full">
+                        <canvas id="chart-chem"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Image Modal -->
     <div id="imageModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
         <div class="relative w-full h-full flex items-center justify-center p-4">
@@ -253,7 +294,8 @@
 
         let petLogs = [];
         let logIdToDelete = null;
-        let updateIndexToDelete = null; // นำตัวแปรกลับมาแล้วครับ
+        let updateIndexToDelete = null;
+        let activeCharts = []; // เก็บ instance ของกราฟเพื่อลบทิ้งก่อนวาดใหม่
 
         const form = document.getElementById('logForm');
         const logsContainer = document.getElementById('logsContainer');
@@ -317,7 +359,6 @@
         typeFilter.addEventListener('change', () => window.renderLogs());
         searchInput.addEventListener('input', () => window.renderLogs());
 
-        // ฟังก์ชันคำนวณอายุจากวันเกิด
         function calculateAge(dobString) {
             if (!dobString) return '';
             const dob = new Date(dobString);
@@ -333,6 +374,31 @@
             if (years > 0) ageStr.push(`${years} ปี`);
             if (months > 0) ageStr.push(`${months} เดือน`);
             return ageStr.join(' ');
+        }
+
+        // ฟังก์ชันสร้างช่องกรอกค่าแล็บ (เพื่อความสะอาดของโค้ดหลัก)
+        function createLabInputsHTML(prefix, id, values = {}) {
+            return `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-2 p-3 bg-gray-100/70 border border-gray-200 rounded-xl">
+                    <div class="col-span-full text-[11px] font-bold text-gray-500 mb-0.5 border-b border-gray-200/50 pb-1">🔴 RBC Panel</div>
+                    <input type="number" id="${prefix}-hct-${id}" placeholder="Hct (%)" value="${values.hct || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
+                    <input type="number" id="${prefix}-mcv-${id}" placeholder="MCV (fL)" value="${values.mcv || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
+                    <input type="number" id="${prefix}-mchc-${id}" placeholder="MCHC (g/dL)" value="${values.mchc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
+                    
+                    <div class="col-span-full text-[11px] font-bold text-gray-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟣 WBC & PLT Panel</div>
+                    <input type="number" id="${prefix}-wbc-${id}" placeholder="WBC" value="${values.wbc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+                    <input type="number" id="${prefix}-neu-${id}" placeholder="Neu (%)" value="${values.neu || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+                    <input type="number" id="${prefix}-lym-${id}" placeholder="Lym (%)" value="${values.lym || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+                    <input type="number" id="${prefix}-plt-${id}" placeholder="PLT" value="${values.plt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+
+                    <div class="col-span-full text-[11px] font-bold text-gray-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟢 Liver & Kidney Panel</div>
+                    <input type="number" id="${prefix}-bun-${id}" placeholder="BUN" value="${values.bun || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                    <input type="number" id="${prefix}-creat-${id}" placeholder="Creat" value="${values.creat || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                    <input type="number" id="${prefix}-alt-${id}" placeholder="ALT" value="${values.alt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                    <input type="number" id="${prefix}-ast-${id}" placeholder="AST" value="${values.ast || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                    <input type="number" id="${prefix}-alp-${id}" placeholder="ALP" value="${values.alp || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                </div>
+            `;
         }
 
         window.renderLogs = function() {
@@ -356,16 +422,18 @@
 
             emptyState.classList.add('hidden');
             
-            // ใช้การต่อ String แบบธรรมดา แทนการใช้ Template Literals ซ้อนกันเพื่อป้องกัน SyntaxError
             const logsHtmlArray = filteredLogs.map(log => {
                 const dateObj = new Date(log.date);
                 const displayDate = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
                 
+                // ตรวจสอบว่าเคสนี้มีข้อมูลกราฟไหม
+                let hasLabDataInLog = false;
+
                 let updatesHtml = '';
                 if (log.updates && log.updates.length > 0) {
                     const updateItemsArray = log.updates.map((update, index) => {
                         
-                        // ===== DESIGN UPDATES: Minimal Earth Tone (White box + Colored Left Border) =====
+                        // ===== DESIGN UPDATES: Minimal Earth Tone =====
                         let vitalsHtml = '';
                         if (update.weight || update.temp) {
                             let wHtml = update.weight ? '<span class="px-2.5 py-1 text-[11px] font-bold rounded-md bg-stone-50 text-stone-600 border border-stone-200 flex items-center gap-1"><i class="ph-fill ph-scales text-stone-400"></i> ' + update.weight + ' kg</span>' : '';
@@ -378,15 +446,10 @@
                         const boxBase = "bg-white border border-gray-100 shadow-sm rounded-xl p-3 mb-2 border-l-4";
                         
                         let peHtml = update.pe ? '<div class="' + boxBase + ' border-l-stone-400"><p class="text-stone-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-stone-400 text-sm"></i> Physical Exam (PE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.pe + '</p></div>' : '';
-                        
                         let ddxHtml = update.diffDiag ? '<div class="' + boxBase + ' border-l-amber-400/80"><p class="text-amber-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-list-magnifying-glass text-amber-500/80 text-sm"></i> Diff. Diagnosis</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.diffDiag + '</p></div>' : '';
-                        
                         let dxHtml = update.finalDiag ? '<div class="' + boxBase + ' border-l-[#748E63]"><p class="text-[#5B734C] text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-check-circle text-[#748E63] text-sm"></i> Final Diagnosis (Dx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.finalDiag + '</p></div>' : '';
-                        
                         let treatmentHtml = update.treatment ? '<div class="' + boxBase + ' border-l-sky-400/80"><p class="text-sky-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-sky-500/80 text-sm"></i> การรักษา / ยาที่จ่าย</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.treatment + '</p></div>' : '';
-                        
                         let labHtml = update.labResult ? '<div class="' + boxBase + ' border-l-violet-400/70"><p class="text-violet-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-flask text-violet-400/80 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.labResult + '</p></div>' : '';
-                        
                         let ceHtml = update.ce ? '<div class="' + boxBase + ' border-l-rose-400/70"><p class="text-rose-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-rose-400/80 text-sm"></i> Client Education (CE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.ce + '</p></div>' : '';
                         
                         let imageHtml = update.imageUrl ? '<img src="' + update.imageUrl + '" onclick="window.openImageModal(this.src)" class="mt-2 rounded-xl max-h-48 border border-gray-200 object-cover hover:opacity-90 transition cursor-zoom-in shadow-sm" alt="ภาพอัปเดต">' : '';
@@ -395,6 +458,13 @@
                         let editPreviewClass = update.imageUrl ? "relative w-fit mt-1 px-1" : "hidden relative w-fit mt-1 px-1";
                         let editPreviewSrc = update.imageUrl ? update.imageUrl : "";
                         
+                        // Check if labData exists
+                        let labDataBadge = '';
+                        if (update.labData && Object.values(update.labData).some(v => v !== null && v !== '')) {
+                            hasLabDataInLog = true;
+                            labDataBadge = '<span class="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-200"><i class="ph-fill ph-chart-line"></i> มีค่าเลือด</span>';
+                        }
+
                         let updateWeight = update.weight || '';
                         let updateTemp = update.temp || '';
                         let updateText = update.text || '';
@@ -409,7 +479,7 @@
                             <div class="bg-white border border-gray-200 p-4 rounded-xl text-sm mb-3 group/update relative">
                                 <div class="flex justify-between items-start mb-2">
                                     <span class="font-bold text-gray-700 text-xs flex items-center gap-2">
-                                        <i class="ph-fill ph-chat-circle text-gray-400"></i> อัปเดต ${index + 1}
+                                        <i class="ph-fill ph-chat-circle text-gray-400"></i> อัปเดต ${index + 1} ${labDataBadge}
                                         <div class="flex items-center gap-1 opacity-0 group-hover/update:opacity-100 transition-opacity">
                                             <button onclick="window.toggleEditUpdate('${log.id}', ${index})" class="text-gray-400 hover:text-cozy-green bg-gray-50 rounded p-1 border border-gray-200" title="แก้ไข">
                                                 <i class="ph ph-pencil-simple text-sm"></i>
@@ -478,6 +548,14 @@
                                         <textarea id="update-ce-${log.id}-${index}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-rose-400 focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateCe}</textarea>
                                     </div>
 
+                                    <!-- Section กรอกค่าแล็บสำหรับแก้ไข -->
+                                    <div class="mt-2">
+                                        <button type="button" onclick="document.getElementById('edit-lab-grid-${log.id}-${index}').classList.toggle('hidden')" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition"><i class="ph-bold ph-chart-line-up"></i> แก้ไขตัวเลขค่าเลือด (สำหรับกราฟ)</button>
+                                        <div id="edit-lab-grid-${log.id}-${index}" class="hidden">
+                                            ${createLabInputsHTML('update-ld', `${log.id}-${index}`, update.labData || {})}
+                                        </div>
+                                    </div>
+
                                     <div id="edit-preview-container-${log.id}-${index}" class="${editPreviewClass}">
                                         <img id="edit-preview-image-${log.id}-${index}" class="h-20 rounded-lg border border-gray-300 object-cover cursor-zoom-in" onclick="window.openImageModal(this.src)" src="${editPreviewSrc}" alt="preview">
                                         <button type="button" onclick="window.removeEditPreview('${log.id}', ${index})" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[12px] font-bold text-white"></i></button>
@@ -544,6 +622,16 @@
                     speciesBadge = '<span class="px-2 py-0.5 text-[10px] font-bold rounded-md border ' + speciesColor + ' flex items-center gap-1"><i class="ph-fill ' + speciesIcon + ' text-sm"></i> ' + log.species + '</span>';
                 }
 
+                // ปุ่มดูกราฟ แสดงเฉพาะตอนที่มีข้อมูลตัวเลขแล็บแล้ว
+                let chartButtonHtml = '';
+                if (hasLabDataInLog) {
+                    chartButtonHtml = `
+                        <button onclick="window.openChartModal('${log.id}')" class="absolute top-5 right-24 text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-blue-200 hover:bg-blue-50" title="ดูกราฟแนวโน้มค่าเลือด">
+                            <i class="ph-fill ph-trend-up text-lg"></i>
+                        </button>
+                    `;
+                }
+
                 return `
                     <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm relative group flex flex-col h-auto">
                         
@@ -551,9 +639,11 @@
                             <i class="ph ph-trash text-lg"></i>
                         </button>
                         
-                        <button onclick="window.toggleEditLog('${log.id}')" class="absolute top-5 right-14 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-blue-200 hover:bg-blue-50" title="แก้ไขข้อมูลสัตว์ป่วย">
+                        <button onclick="window.toggleEditLog('${log.id}')" class="absolute top-5 right-14 text-gray-300 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-gray-200 hover:bg-gray-100" title="แก้ไขข้อมูลสัตว์ป่วย">
                             <i class="ph ph-pencil-simple text-lg"></i>
                         </button>
+
+                        ${chartButtonHtml}
 
                         <!-- ส่วนแสดงผลข้อมูลทั่วไป -->
                         <div id="log-header-display-${log.id}">
@@ -623,9 +713,11 @@
                         </div>
 
                         <div>
-                            <p class="text-[11px] font-bold text-gray-500 mb-3 flex items-center gap-1.5 uppercase tracking-wide">
-                                <i class="ph-fill ph-activity text-sm text-gray-400"></i> Clinical Notes & Updates
-                            </p>
+                            <div class="flex justify-between items-center mb-3">
+                                <p class="text-[11px] font-bold text-gray-500 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i class="ph-fill ph-activity text-sm text-gray-400"></i> Clinical Notes & Updates
+                                </p>
+                            </div>
                             
                             ${updatesHtml}
                             ${emptyStateHtml}
@@ -668,7 +760,15 @@
                                 
                                 <div class="relative mb-2">
                                     <div class="absolute top-2.5 left-3 text-violet-400"><i class="ph-fill ph-flask text-base"></i></div>
-                                    <textarea id="new-lab-${log.id}" rows="1" placeholder="ผลตรวจแล็บ (พิมพ์เองหรือใช้ AI ช่วยอ่าน)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-violet-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                    <textarea id="new-lab-${log.id}" rows="1" placeholder="ผลตรวจแล็บ (อธิบายด้วยข้อความ)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-violet-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
+                                </div>
+
+                                <!-- Section กรอกค่าแล็บ -->
+                                <div class="mb-2">
+                                    <button type="button" onclick="document.getElementById('lab-grid-${log.id}').classList.toggle('hidden')" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition shadow-sm"><i class="ph-bold ph-chart-line-up text-sm"></i> ระบุตัวเลขค่าเลือด (สำหรับสร้างกราฟ)</button>
+                                    <div id="lab-grid-${log.id}" class="hidden">
+                                        ${createLabInputsHTML('new-ld', log.id)}
+                                    </div>
                                 </div>
 
                                 <div class="relative mb-2">
@@ -681,7 +781,7 @@
                                     <button type="button" onclick="window.removePreview('${log.id}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="ph ph-x text-[10px] font-bold text-white"></i></button>
                                 </div>
 
-                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mt-3 border-t border-gray-100 pt-3 px-1 gap-3">
+                                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mt-3 border-t border-gray-200/60 pt-3 px-1 gap-3">
                                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto flex-1">
                                         <label class="shrink-0 cursor-pointer text-gray-500 hover:text-cozy-green transition flex items-center gap-1.5 text-[11px] font-bold bg-white px-2.5 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 shadow-sm">
                                             <i class="ph-fill ph-image text-base"></i> แนบรูป
@@ -911,6 +1011,13 @@
             }
         });
 
+        // ฟังก์ชันช่วยดึงค่าตัวเลข
+        const getLabNum = (prefix, field, id) => {
+            const el = document.getElementById(`${prefix}-${field}-${id}`);
+            if (!el || el.value === '') return null;
+            return parseFloat(el.value);
+        };
+
         window.submitInlineUpdate = async function(id) {
             const getVal = (field) => {
                 const element = document.getElementById(`new-${field}-${id}`);
@@ -927,9 +1034,31 @@
             const labText = getVal('lab');
             const ceText = getVal('ce');
             
+            // ดึงค่าแล็บตัวเลข
+            const ld_hct = getLabNum('new-ld', 'hct', id);
+            const ld_mcv = getLabNum('new-ld', 'mcv', id);
+            const ld_mchc = getLabNum('new-ld', 'mchc', id);
+            const ld_wbc = getLabNum('new-ld', 'wbc', id);
+            const ld_neu = getLabNum('new-ld', 'neu', id);
+            const ld_lym = getLabNum('new-ld', 'lym', id);
+            const ld_plt = getLabNum('new-ld', 'plt', id);
+            const ld_bun = getLabNum('new-ld', 'bun', id);
+            const ld_creat = getLabNum('new-ld', 'creat', id);
+            const ld_alt = getLabNum('new-ld', 'alt', id);
+            const ld_ast = getLabNum('new-ld', 'ast', id);
+            const ld_alp = getLabNum('new-ld', 'alp', id);
+
+            const labData = {
+                hct: ld_hct, mcv: ld_mcv, mchc: ld_mchc,
+                wbc: ld_wbc, neu: ld_neu, lym: ld_lym, plt: ld_plt,
+                bun: ld_bun, creat: ld_creat, alt: ld_alt, ast: ld_ast, alp: ld_alp
+            };
+
+            const hasLabData = Object.values(labData).some(v => v !== null);
+
             const file = window.pendingImages[id];
             
-            if (!updateText && !treatmentText && !labText && !newWeight && !newTemp && !peText && !ddxText && !dxText && !ceText && !file) return;
+            if (!updateText && !treatmentText && !labText && !newWeight && !newTemp && !peText && !ddxText && !dxText && !ceText && !file && !hasLabData) return;
 
             const btn = document.getElementById(`submit-update-btn-${id}`);
             const originalBtnHtml = btn.innerHTML;
@@ -960,6 +1089,7 @@
                     treatment: treatmentText, 
                     labResult: labText,
                     ce: ceText,
+                    labData: hasLabData ? labData : null, // บันทึกก้อนข้อมูลถ้ามีการกรอก
                     timestamp: timeString, 
                     imageUrl: imageUrl 
                 };
@@ -970,18 +1100,6 @@
 
                 targetLog.updates.push(newUpdateObj);
 
-                if (document.getElementById(`new-weight-${id}`)) document.getElementById(`new-weight-${id}`).value = '';
-                if (document.getElementById(`new-temp-${id}`)) document.getElementById(`new-temp-${id}`).value = '';
-                
-                const fieldsToClear = ['update', 'pe', 'ddx', 'dx', 'treatment', 'lab', 'ce'];
-                fieldsToClear.forEach(field => {
-                    const el = document.getElementById(`new-${field}-${id}`);
-                    if(el) { el.value = ''; el.style.height = 'auto'; }
-                });
-
-                const aiContextInput = document.getElementById(`ai-context-${id}`);
-                if (aiContextInput) aiContextInput.value = '';
-                
                 window.removePreview(id);
                 window.renderLogs();
             } catch (error) {
@@ -1050,10 +1168,30 @@
             const newLab = getVal('lab');
             const newCe = getVal('ce');
             
+            const ld_hct = getLabNum('update-ld', 'hct', id + '-' + index);
+            const ld_mcv = getLabNum('update-ld', 'mcv', id + '-' + index);
+            const ld_mchc = getLabNum('update-ld', 'mchc', id + '-' + index);
+            const ld_wbc = getLabNum('update-ld', 'wbc', id + '-' + index);
+            const ld_neu = getLabNum('update-ld', 'neu', id + '-' + index);
+            const ld_lym = getLabNum('update-ld', 'lym', id + '-' + index);
+            const ld_plt = getLabNum('update-ld', 'plt', id + '-' + index);
+            const ld_bun = getLabNum('update-ld', 'bun', id + '-' + index);
+            const ld_creat = getLabNum('update-ld', 'creat', id + '-' + index);
+            const ld_alt = getLabNum('update-ld', 'alt', id + '-' + index);
+            const ld_ast = getLabNum('update-ld', 'ast', id + '-' + index);
+            const ld_alp = getLabNum('update-ld', 'alp', id + '-' + index);
+
+            const labData = {
+                hct: ld_hct, mcv: ld_mcv, mchc: ld_mchc,
+                wbc: ld_wbc, neu: ld_neu, lym: ld_lym, plt: ld_plt,
+                bun: ld_bun, creat: ld_creat, alt: ld_alt, ast: ld_ast, alp: ld_alp
+            };
+            const hasLabData = Object.values(labData).some(v => v !== null);
+
             const file = window.pendingEditImages[`${id}-${index}`];
             const isImageRemoved = window.removedEditImages[`${id}-${index}`];
             
-            if (!newText && !newTreatment && !newLab && !newWeight && !newTemp && !newPe && !newDdx && !newDx && !newCe && !file && isImageRemoved) return;
+            if (!newText && !newTreatment && !newLab && !newWeight && !newTemp && !newPe && !newDdx && !newDx && !newCe && !file && isImageRemoved && !hasLabData) return;
 
             const btn = document.getElementById(`save-edit-btn-${id}-${index}`);
             const originalBtnHtml = btn.innerHTML;
@@ -1080,6 +1218,7 @@
                 currentUpdates[index].treatment = newTreatment;
                 currentUpdates[index].labResult = newLab;
                 currentUpdates[index].ce = newCe;
+                currentUpdates[index].labData = hasLabData ? labData : null;
                 currentUpdates[index].imageUrl = imageUrl;
                 
                 const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
@@ -1098,6 +1237,130 @@
                 btn.innerHTML = originalBtnHtml;
                 btn.disabled = false;
             }
+        };
+
+        // --- ระบบวาดกราฟ (Chart.js) ---
+        window.openChartModal = function(id) {
+            const log = petLogs.find(l => l.id === id);
+            if (!log || !log.updates) return;
+
+            const chartModal = document.getElementById('chartModal');
+            chartModal.classList.remove('hidden');
+            chartModal.classList.add('flex');
+
+            // ดึงเฉพาะอัปเดตที่มีตัวเลขค่าเลือด
+            const updatesWithLab = log.updates.filter(u => u.labData && Object.values(u.labData).some(v => v !== null));
+            
+            // เตรียมข้อมูล
+            const labels = [];
+            const data = { hct: [], mcv: [], mchc: [], wbc: [], neu: [], lym: [], plt: [], bun: [], creat: [], alt: [], ast: [], alp: [] };
+
+            // จัดเรียงตามเวลา (เพื่อความชัวร์)
+            const sortedUpdates = [...updatesWithLab].sort((a, b) => {
+                // แปลง timestamp กลับเพื่อเรียง
+                // หมายเหตุ: timestamp เป็น string TH ถ้าเรียงไม่ได้อาจจะเพี้ยนนิดหน่อย แต่ในที่นี้เราถือว่าถูกเก็บตามลำดับอยู่แล้ว
+                return 1; // dummy sort, array is already chronological
+            });
+
+            updatesWithLab.forEach(u => {
+                // เอาเฉพาะวันที่ (ตัดส่วนเวลาออก)
+                let dateLabel = u.timestamp ? u.timestamp.split(',')[0] : 'N/A';
+                labels.push(dateLabel);
+
+                data.hct.push(u.labData.hct);
+                data.mcv.push(u.labData.mcv);
+                data.mchc.push(u.labData.mchc);
+                
+                data.wbc.push(u.labData.wbc);
+                data.neu.push(u.labData.neu);
+                data.lym.push(u.labData.lym);
+                data.plt.push(u.labData.plt);
+                
+                data.bun.push(u.labData.bun);
+                data.creat.push(u.labData.creat);
+                data.alt.push(u.labData.alt);
+                data.ast.push(u.labData.ast);
+                data.alp.push(u.labData.alp);
+            });
+
+            // ลบกราฟเก่าทิ้งก่อนวาดใหม่
+            activeCharts.forEach(chart => chart.destroy());
+            activeCharts = [];
+
+            // ตั้งค่าทั่วไปของกราฟ
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                spanGaps: true, // ลากเส้นข้ามจุดที่ไม่มีข้อมูล (null)
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 6 } } }
+            };
+
+            // 1. RBC Chart
+            const ctxRBC = document.getElementById('chart-rbc').getContext('2d');
+            activeCharts.push(new Chart(ctxRBC, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Hct (%)', data: data.hct, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.3 },
+                        { label: 'MCV (fL)', data: data.mcv, borderColor: '#f97316', backgroundColor: '#f97316', tension: 0.3 },
+                        { label: 'MCHC (g/dL)', data: data.mchc, borderColor: '#eab308', backgroundColor: '#eab308', tension: 0.3 }
+                    ]
+                },
+                options: commonOptions
+            }));
+
+            // 2. WBC & PLT Chart (แยก 2 แกน Y)
+            const ctxWBC = document.getElementById('chart-wbc-plt').getContext('2d');
+            activeCharts.push(new Chart(ctxWBC, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'WBC (x10³)', data: data.wbc, borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', yAxisID: 'y', tension: 0.3 },
+                        { label: 'Neu (%)', data: data.neu, borderColor: '#d946ef', backgroundColor: '#d946ef', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
+                        { label: 'Lym (%)', data: data.lym, borderColor: '#6366f1', backgroundColor: '#6366f1', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
+                        // PLT ไปอยู่แกนขวา
+                        { label: 'PLT (x10³)', data: data.plt, borderColor: '#14b8a6', backgroundColor: '#14b8a6', yAxisID: 'y1', tension: 0.3 }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'WBC / %' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'PLT' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            }));
+
+            // 3. Chem Chart (แยกแกนให้ Creatinine)
+            const ctxChem = document.getElementById('chart-chem').getContext('2d');
+            activeCharts.push(new Chart(ctxChem, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'BUN', data: data.bun, borderColor: '#3b82f6', backgroundColor: '#3b82f6', yAxisID: 'y', tension: 0.3 },
+                        { label: 'ALT', data: data.alt, borderColor: '#22c55e', backgroundColor: '#22c55e', yAxisID: 'y', tension: 0.3 },
+                        { label: 'AST', data: data.ast, borderColor: '#10b981', backgroundColor: '#10b981', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
+                        { label: 'ALP', data: data.alp, borderColor: '#84cc16', backgroundColor: '#84cc16', yAxisID: 'y', tension: 0.3 },
+                        // Creatinine ไปอยู่แกนขวา (เพราะค่าต่ำ)
+                        { label: 'Creatinine', data: data.creat, borderColor: '#f43f5e', backgroundColor: '#f43f5e', yAxisID: 'y1', tension: 0.3 }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Enzymes / BUN' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Creatinine' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            }));
+        };
+
+        window.closeChartModal = function() {
+            document.getElementById('chartModal').classList.remove('flex');
+            document.getElementById('chartModal').classList.add('hidden');
         };
 
         window.toggleDischarge = async function(id, isChecked) {
