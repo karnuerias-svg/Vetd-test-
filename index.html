@@ -376,22 +376,33 @@
             return ageStr.join(' ');
         }
 
-        // ฟังก์ชันสร้างช่องกรอกค่าแล็บ (เพื่อความสะอาดของโค้ดหลัก)
+        // ฟังก์ชันสร้างช่องกรอกค่าแล็บ (อัปเดตให้มีวันที่และช่อง count)
         function createLabInputsHTML(prefix, id, values = {}) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const labDateVal = values.labDate || todayStr;
+
             return `
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-2 p-3 bg-gray-100/70 border border-gray-200 rounded-xl">
-                    <div class="col-span-full text-[11px] font-bold text-gray-500 mb-0.5 border-b border-gray-200/50 pb-1">🔴 RBC Panel</div>
+                    <div class="col-span-full flex justify-between items-center mb-1 border-b border-gray-200/50 pb-2">
+                        <span class="text-[11px] font-bold text-gray-600 flex items-center gap-1.5"><i class="ph-fill ph-calendar-blank text-gray-400"></i> วันที่ตรวจเลือด:</span>
+                        <input type="date" id="${prefix}-labDate-${id}" value="${labDateVal}" class="text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400 bg-white">
+                    </div>
+
+                    <div class="col-span-full text-[11px] font-bold text-red-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🔴 RBC Panel</div>
                     <input type="number" id="${prefix}-hct-${id}" placeholder="Hct (%)" value="${values.hct || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
                     <input type="number" id="${prefix}-mcv-${id}" placeholder="MCV (fL)" value="${values.mcv || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
                     <input type="number" id="${prefix}-mchc-${id}" placeholder="MCHC (g/dL)" value="${values.mchc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
+                    <div class="hidden md:block"></div> <!-- spacer -->
                     
-                    <div class="col-span-full text-[11px] font-bold text-gray-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟣 WBC & PLT Panel</div>
-                    <input type="number" id="${prefix}-wbc-${id}" placeholder="WBC" value="${values.wbc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+                    <div class="col-span-full text-[11px] font-bold text-purple-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟣 WBC & PLT Panel</div>
+                    <input type="number" id="${prefix}-wbc-${id}" placeholder="WBC (x10³)" value="${values.wbc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+                    <input type="number" id="${prefix}-plt-${id}" placeholder="PLT (x10³)" value="${values.plt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
                     <input type="number" id="${prefix}-neu-${id}" placeholder="Neu (%)" value="${values.neu || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+                    <input type="number" id="${prefix}-neu_count-${id}" placeholder="Neu (count)" value="${values.neu_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
                     <input type="number" id="${prefix}-lym-${id}" placeholder="Lym (%)" value="${values.lym || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
-                    <input type="number" id="${prefix}-plt-${id}" placeholder="PLT" value="${values.plt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+                    <input type="number" id="${prefix}-lym_count-${id}" placeholder="Lym (count)" value="${values.lym_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
 
-                    <div class="col-span-full text-[11px] font-bold text-gray-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟢 Liver & Kidney Panel</div>
+                    <div class="col-span-full text-[11px] font-bold text-green-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟢 Liver & Kidney Panel</div>
                     <input type="number" id="${prefix}-bun-${id}" placeholder="BUN" value="${values.bun || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
                     <input type="number" id="${prefix}-creat-${id}" placeholder="Creat" value="${values.creat || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
                     <input type="number" id="${prefix}-alt-${id}" placeholder="ALT" value="${values.alt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
@@ -460,9 +471,16 @@
                         
                         // Check if labData exists
                         let labDataBadge = '';
-                        if (update.labData && Object.values(update.labData).some(v => v !== null && v !== '')) {
+                        if (update.labData && Object.keys(update.labData).some(k => k !== 'labDate' && update.labData[k] !== null && update.labData[k] !== '')) {
                             hasLabDataInLog = true;
-                            labDataBadge = '<span class="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-200"><i class="ph-fill ph-chart-line"></i> มีค่าเลือด</span>';
+                            
+                            // จัดฟอร์แมตวันที่ตรวจเลือดให้สวยงาม
+                            let labDateStr = 'มีค่าเลือด';
+                            if(update.labData.labDate) {
+                                const d = new Date(update.labData.labDate);
+                                if(!isNaN(d)) labDateStr = `เลือด: ${d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}`;
+                            }
+                            labDataBadge = `<span class="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-200"><i class="ph-fill ph-chart-line"></i> ${labDateStr}</span>`;
                         }
 
                         let updateWeight = update.weight || '';
@@ -1035,12 +1053,15 @@
             const ceText = getVal('ce');
             
             // ดึงค่าแล็บตัวเลข
+            const ld_labDate = document.getElementById(`new-ld-labDate-${id}`) ? document.getElementById(`new-ld-labDate-${id}`).value : '';
             const ld_hct = getLabNum('new-ld', 'hct', id);
             const ld_mcv = getLabNum('new-ld', 'mcv', id);
             const ld_mchc = getLabNum('new-ld', 'mchc', id);
             const ld_wbc = getLabNum('new-ld', 'wbc', id);
             const ld_neu = getLabNum('new-ld', 'neu', id);
+            const ld_neu_count = getLabNum('new-ld', 'neu_count', id);
             const ld_lym = getLabNum('new-ld', 'lym', id);
+            const ld_lym_count = getLabNum('new-ld', 'lym_count', id);
             const ld_plt = getLabNum('new-ld', 'plt', id);
             const ld_bun = getLabNum('new-ld', 'bun', id);
             const ld_creat = getLabNum('new-ld', 'creat', id);
@@ -1049,12 +1070,13 @@
             const ld_alp = getLabNum('new-ld', 'alp', id);
 
             const labData = {
+                labDate: ld_labDate,
                 hct: ld_hct, mcv: ld_mcv, mchc: ld_mchc,
-                wbc: ld_wbc, neu: ld_neu, lym: ld_lym, plt: ld_plt,
+                wbc: ld_wbc, neu: ld_neu, neu_count: ld_neu_count, lym: ld_lym, lym_count: ld_lym_count, plt: ld_plt,
                 bun: ld_bun, creat: ld_creat, alt: ld_alt, ast: ld_ast, alp: ld_alp
             };
 
-            const hasLabData = Object.values(labData).some(v => v !== null);
+            const hasLabData = Object.keys(labData).some(k => k !== 'labDate' && labData[k] !== null);
 
             const file = window.pendingImages[id];
             
@@ -1089,7 +1111,7 @@
                     treatment: treatmentText, 
                     labResult: labText,
                     ce: ceText,
-                    labData: hasLabData ? labData : null, // บันทึกก้อนข้อมูลถ้ามีการกรอก
+                    labData: hasLabData ? labData : null, 
                     timestamp: timeString, 
                     imageUrl: imageUrl 
                 };
@@ -1168,12 +1190,15 @@
             const newLab = getVal('lab');
             const newCe = getVal('ce');
             
+            const ld_labDate = document.getElementById(`update-ld-labDate-${id}-${index}`) ? document.getElementById(`update-ld-labDate-${id}-${index}`).value : '';
             const ld_hct = getLabNum('update-ld', 'hct', id + '-' + index);
             const ld_mcv = getLabNum('update-ld', 'mcv', id + '-' + index);
             const ld_mchc = getLabNum('update-ld', 'mchc', id + '-' + index);
             const ld_wbc = getLabNum('update-ld', 'wbc', id + '-' + index);
             const ld_neu = getLabNum('update-ld', 'neu', id + '-' + index);
+            const ld_neu_count = getLabNum('update-ld', 'neu_count', id + '-' + index);
             const ld_lym = getLabNum('update-ld', 'lym', id + '-' + index);
+            const ld_lym_count = getLabNum('update-ld', 'lym_count', id + '-' + index);
             const ld_plt = getLabNum('update-ld', 'plt', id + '-' + index);
             const ld_bun = getLabNum('update-ld', 'bun', id + '-' + index);
             const ld_creat = getLabNum('update-ld', 'creat', id + '-' + index);
@@ -1182,11 +1207,12 @@
             const ld_alp = getLabNum('update-ld', 'alp', id + '-' + index);
 
             const labData = {
+                labDate: ld_labDate,
                 hct: ld_hct, mcv: ld_mcv, mchc: ld_mchc,
-                wbc: ld_wbc, neu: ld_neu, lym: ld_lym, plt: ld_plt,
+                wbc: ld_wbc, neu: ld_neu, neu_count: ld_neu_count, lym: ld_lym, lym_count: ld_lym_count, plt: ld_plt,
                 bun: ld_bun, creat: ld_creat, alt: ld_alt, ast: ld_ast, alp: ld_alp
             };
-            const hasLabData = Object.values(labData).some(v => v !== null);
+            const hasLabData = Object.keys(labData).some(k => k !== 'labDate' && labData[k] !== null);
 
             const file = window.pendingEditImages[`${id}-${index}`];
             const isImageRemoved = window.removedEditImages[`${id}-${index}`];
@@ -1249,22 +1275,31 @@
             chartModal.classList.add('flex');
 
             // ดึงเฉพาะอัปเดตที่มีตัวเลขค่าเลือด
-            const updatesWithLab = log.updates.filter(u => u.labData && Object.values(u.labData).some(v => v !== null));
+            const updatesWithLab = log.updates.filter(u => u.labData && Object.keys(u.labData).some(k => k !== 'labDate' && u.labData[k] !== null && u.labData[k] !== ''));
             
             // เตรียมข้อมูล
             const labels = [];
-            const data = { hct: [], mcv: [], mchc: [], wbc: [], neu: [], lym: [], plt: [], bun: [], creat: [], alt: [], ast: [], alp: [] };
+            const data = { hct: [], mcv: [], mchc: [], wbc: [], neu: [], neu_count: [], lym: [], lym_count: [], plt: [], bun: [], creat: [], alt: [], ast: [], alp: [] };
 
-            // จัดเรียงตามเวลา (เพื่อความชัวร์)
+            // จัดเรียงตามเวลา (เรียงตามวันที่ตรวจเลือด labDate เป็นหลัก)
             const sortedUpdates = [...updatesWithLab].sort((a, b) => {
-                // แปลง timestamp กลับเพื่อเรียง
-                // หมายเหตุ: timestamp เป็น string TH ถ้าเรียงไม่ได้อาจจะเพี้ยนนิดหน่อย แต่ในที่นี้เราถือว่าถูกเก็บตามลำดับอยู่แล้ว
-                return 1; // dummy sort, array is already chronological
+                const dateA = (a.labData && a.labData.labDate) ? a.labData.labDate : "9999-99-99";
+                const dateB = (b.labData && b.labData.labDate) ? b.labData.labDate : "9999-99-99";
+                if(dateA !== dateB) return dateA.localeCompare(dateB);
+                return 0;
             });
 
-            updatesWithLab.forEach(u => {
-                // เอาเฉพาะวันที่ (ตัดส่วนเวลาออก)
-                let dateLabel = u.timestamp ? u.timestamp.split(',')[0] : 'N/A';
+            sortedUpdates.forEach(u => {
+                // เอหวันที่ตรวจเลือดมาแสดง ถ้าไม่มีใช้วันที่อัปเดต
+                let dateLabel = 'N/A';
+                if (u.labData && u.labData.labDate) {
+                    const d = new Date(u.labData.labDate);
+                    if (!isNaN(d)) {
+                        dateLabel = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                    }
+                } else if (u.timestamp) {
+                    dateLabel = u.timestamp.split(',')[0];
+                }
                 labels.push(dateLabel);
 
                 data.hct.push(u.labData.hct);
@@ -1273,7 +1308,9 @@
                 
                 data.wbc.push(u.labData.wbc);
                 data.neu.push(u.labData.neu);
+                data.neu_count.push(u.labData.neu_count);
                 data.lym.push(u.labData.lym);
+                data.lym_count.push(u.labData.lym_count);
                 data.plt.push(u.labData.plt);
                 
                 data.bun.push(u.labData.bun);
@@ -1310,7 +1347,7 @@
                 options: commonOptions
             }));
 
-            // 2. WBC & PLT Chart (แยก 2 แกน Y)
+            // 2. WBC & PLT Chart (แยก 2 แกน Y) - มี Count เข้ามาด้วย
             const ctxWBC = document.getElementById('chart-wbc-plt').getContext('2d');
             activeCharts.push(new Chart(ctxWBC, {
                 type: 'line',
@@ -1319,7 +1356,9 @@
                     datasets: [
                         { label: 'WBC (x10³)', data: data.wbc, borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', yAxisID: 'y', tension: 0.3 },
                         { label: 'Neu (%)', data: data.neu, borderColor: '#d946ef', backgroundColor: '#d946ef', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
+                        { label: 'Neu (count)', data: data.neu_count, borderColor: '#c026d3', backgroundColor: '#c026d3', yAxisID: 'y', tension: 0.3, hidden: true },
                         { label: 'Lym (%)', data: data.lym, borderColor: '#6366f1', backgroundColor: '#6366f1', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
+                        { label: 'Lym (count)', data: data.lym_count, borderColor: '#4f46e5', backgroundColor: '#4f46e5', yAxisID: 'y', tension: 0.3, hidden: true },
                         // PLT ไปอยู่แกนขวา
                         { label: 'PLT (x10³)', data: data.plt, borderColor: '#14b8a6', backgroundColor: '#14b8a6', yAxisID: 'y1', tension: 0.3 }
                     ]
@@ -1327,7 +1366,7 @@
                 options: {
                     ...commonOptions,
                     scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'WBC / %' } },
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'WBC / Count / %' } },
                         y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'PLT' }, grid: { drawOnChartArea: false } }
                     }
                 }
