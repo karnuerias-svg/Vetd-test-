@@ -2174,6 +2174,62 @@
             } catch (error) { console.error("Error updating discharge status: ", error); }
         };
 
+        // ================= ฟังก์ชันบันทึกเคสใหม่ (ส่วนที่หายไป) =================
+        document.getElementById('logForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-white"></i> บันทึก...';
+            btn.disabled = true;
+
+            const caseType = document.querySelector('input[name="caseType"]:checked').value;
+            const newLog = {
+                petId: document.getElementById('petId').value.trim(),
+                petName: document.getElementById('petName').value.trim(),
+                species: document.getElementById('species').value,
+                dob: document.getElementById('dob').value,
+                ownerPhone: document.getElementById('ownerPhone').value.trim(),
+                date: document.getElementById('date').value,
+                symptoms: document.getElementById('symptoms').value.trim(),
+                caseType: caseType,
+                updates: [],
+                isDischarged: false,
+                dischargeDate: null,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                const newDoc = doc(logsRef); 
+                await setDoc(newDoc, newLog);
+                
+                // อัปเดตข้อมูลเข้าตัวแปรหลักเพื่อแสดงผลทันที
+                const savedLog = { id: newDoc.id, ...newLog };
+                window.allClinicLogs.unshift(savedLog);
+                
+                // ถ้าเคสใหม่นี้อยู่ในเดือนปัจจุบันที่เลือกอยู่ ให้เอาไปใส่ใน petLogs (ตัวแปรหน้าจอหลัก) ด้วย
+                if (newLog.date.startsWith(monthFilter.value)) {
+                    window.petLogs.unshift(savedLog);
+                    window.petLogs.sort((a, b) => {
+                        if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    });
+                }
+                
+                // เคลียร์ฟอร์ม
+                document.getElementById('logForm').reset();
+                document.getElementById('date').valueAsDate = new Date();
+                
+                window.renderLogs();
+                showAlert("บันทึกเคสใหม่เรียบร้อย", "success");
+            } catch(e) {
+                console.error(e);
+                showAlert("เกิดข้อผิดพลาดในการบันทึก", "error");
+            } finally {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            }
+        });
+
     </script>
 </body>
 </html>
