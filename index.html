@@ -425,7 +425,7 @@
         </div>
     </div>
 
-    <!-- Image Modal -->
+    <!-- Image Modal (แก้ไขการขยายภาพ 85% และทำให้เปิดแบบ Instant) -->
     <div id="imageModal" class="fixed inset-0 z-[1000] hidden items-center justify-center bg-gray-900/90 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
         <div class="relative w-full h-full flex items-center justify-center p-4">
             <button type="button" class="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-md transition shadow-sm border border-white/20">
@@ -513,7 +513,8 @@
     <!-- Firebase & JS Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, query, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // ================= CHANGE: เพิ่ม enableIndexedDbPersistence =================
+        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, query, where, getDocs, getDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
@@ -528,6 +529,16 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // ================= CHANGE: เปิดระบบ Offline Cache เพื่อลดการใช้ Read Quota =================
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.warn("ไม่สามารถเปิด Cache ได้ (อาจเปิดหลาย Tab)");
+            } else if (err.code == 'unimplemented') {
+                console.warn("เบราว์เซอร์นี้ไม่รองรับระบบ Cache");
+            }
+        });
+
         const auth = getAuth(app);
         
         const logsRef = collection(db, 'clinics', 'my-clinic', 'petLogs');
@@ -571,14 +582,31 @@
             showAlert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้", "error");
         });
 
+        // ================= CHANGE: Query ดึงเฉพาะข้อมูลของเดือนปัจจุบัน =================
         async function loadAllData() {
             loadingState.classList.remove('hidden');
             emptyState.classList.add('hidden');
             logsContainer.innerHTML = '';
 
             try {
+                // คำนวณวันเริ่มต้นและสิ้นสุดของเดือนปัจจุบัน
+                const selectedMonth = monthFilter.value; // e.g. "2024-02"
+                let logsQuery = query(logsRef); // Default: if somehow month is empty
+
+                if (selectedMonth) {
+                    const startOfMonth = `${selectedMonth}-01`;
+                    // สร้างวันสุดท้ายของเดือน (หลอกๆ เป็นวันที่ 31 ไว้ก่อน Firebase query string เช็คตามตัวอักษรได้)
+                    const endOfMonth = `${selectedMonth}-31`; 
+                    
+                    logsQuery = query(logsRef, 
+                        where("date", ">=", startOfMonth),
+                        where("date", "<=", endOfMonth)
+                    );
+                }
+
+                // การดึงข้อมูลนัดหมายดึงทั้งหมดไว้สำหรับปฏิทิน
                 const [logsSnap, apptsSnap] = await Promise.all([
-                    getDocs(query(logsRef)),
+                    getDocs(logsQuery),
                     getDocs(query(apptsRef))
                 ]);
 
@@ -588,14 +616,11 @@
                 window.allAppointments = [];
                 apptsSnap.forEach(doc => window.allAppointments.push({ id: doc.id, ...doc.data() }));
 
-                const selectedMonth = monthFilter.value;
-                if (selectedMonth) {
-                    window.petLogs = window.allClinicLogs.filter(log => log.date.startsWith(selectedMonth));
-                    window.petLogs.sort((a, b) => {
-                        if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
-                        return new Date(b.createdAt) - new Date(a.createdAt);
-                    });
-                }
+                // จัดเรียง
+                window.petLogs = [...window.allClinicLogs].sort((a, b) => {
+                    if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                });
 
                 window.renderLogs();
                 window.renderApptDashboardList();
@@ -1250,6 +1275,14 @@
                         window.showDayAppointments(dStr);
                     }
                 } 
+                else if (type === 'preventive') {
+                    window.currentPetPreventives = window.currentPetPreventives.filter(p => p.id !== id);
+                    const safePid = window.currentProfilePetId.replace(/\//g, '_');
+                    const petDocRef = doc(db, 'clinics', 'my-clinic', 'pets', safePid);
+                    await setDoc(petDocRef, { preventives: window.currentPetPreventives }, { merge: true });
+                    showAlert("ลบประวัติวัคซีนเรียบร้อย", "success");
+                    window.renderPreventives();
+                }
                 window.closeDeleteModal();
             } catch (error) {
                 console.error("Delete error:", error);
@@ -1262,15 +1295,9 @@
 
         // ================= MAIN LOG RENDER (WITH UPDATED ACTION BUTTONS) =================
         
+        // ================= CHANGE: ดึงข้อมูลจากฐานข้อมูลใหม่ เมื่อมีการเปลี่ยนเดือน (ประหยัด Read) =================
         monthFilter.addEventListener('change', () => {
-            const selectedMonth = monthFilter.value;
-            if (!selectedMonth) return;
-            window.petLogs = window.allClinicLogs.filter(log => log.date.startsWith(selectedMonth));
-            window.petLogs.sort((a, b) => {
-                if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
-                return new Date(b.createdAt) - new Date(a.createdAt);
-            });
-            window.renderLogs();
+            loadAllData(); // โหลดข้อมูลเฉพาะเดือนใหม่แทนการ Filter จาก Array ทั้งหมด
         });
 
         typeFilter.addEventListener('change', () => window.renderLogs());
@@ -1336,6 +1363,7 @@
             }
         };
 
+        // แสดงแฟ้มประวัติแบบ Instant ไม่มี Delay แอนิเมชันตอนเปิด
         window.openPatientProfile = async function(pid) {
             window.currentProfilePetId = pid;
             const matches = window.allClinicLogs.filter(l => l.petId === pid).sort((a,b) => {
@@ -1525,13 +1553,15 @@
 
                         let textHtml = update.text ? '<div class="mb-3"><p class="text-gray-400 text-[10px] font-bold mb-1 flex items-center gap-1 uppercase tracking-wide">History (Hx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.text + '</p></div>' : '';
                         
-                        const boxBase = "bg-white border border-gray-100 shadow-sm rounded-xl p-3 mb-2 border-l-4";
-                        let peHtml = update.pe ? '<div class="' + boxBase + ' border-l-stone-400"><p class="text-stone-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-stone-400 text-sm"></i> Physical Exam (PE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.pe + '</p></div>' : '';
-                        let ddxHtml = update.diffDiag ? '<div class="' + boxBase + ' border-l-amber-400/80"><p class="text-amber-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-list-magnifying-glass text-amber-500/80 text-sm"></i> Diff. Diagnosis</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.diffDiag + '</p></div>' : '';
-                        let dxHtml = update.finalDiag ? '<div class="' + boxBase + ' border-l-[#748E63]"><p class="text-[#5B734C] text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-check-circle text-[#748E63] text-sm"></i> Final Diagnosis (Dx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.finalDiag + '</p></div>' : '';
-                        let treatmentHtml = update.treatment ? '<div class="' + boxBase + ' border-l-sky-400/80"><p class="text-sky-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-sky-500/80 text-sm"></i> การรักษา / ยาที่จ่าย</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.treatment + '</p></div>' : '';
-                        let labHtml = update.labResult ? '<div class="' + boxBase + ' border-l-violet-400/70"><p class="text-violet-700/80 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-violet-400/80 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.labResult + '</p></div>' : '';
-                        let ceHtml = update.ce ? '<div class="' + boxBase + ' border-l-rose-400/70"><p class="text-rose-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-rose-400/80 text-sm"></i> Client Education (CE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.ce + '</p></div>' : '';
+                        // เปลี่ยนจากกล่องสีขาวพร้อม border ซ้ายแบบเดิม เป็นกล่องเทาอ่อนๆ เรียบๆ (Clean UI)
+                        const boxBase = "bg-gray-50/50 border border-gray-200/60 rounded-xl p-3 mb-2";
+                        
+                        let peHtml = update.pe ? '<div class="' + boxBase + '"><p class="text-stone-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-stone-500 text-sm"></i> Physical Exam (PE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.pe + '</p></div>' : '';
+                        let ddxHtml = update.diffDiag ? '<div class="' + boxBase + '"><p class="text-amber-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-list-magnifying-glass text-amber-500 text-sm"></i> Diff. Diagnosis</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.diffDiag + '</p></div>' : '';
+                        let dxHtml = update.finalDiag ? '<div class="' + boxBase + '"><p class="text-emerald-700 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-check-circle text-emerald-600 text-sm"></i> Final Diagnosis (Dx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.finalDiag + '</p></div>' : '';
+                        let treatmentHtml = update.treatment ? '<div class="' + boxBase + '"><p class="text-sky-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-sky-500 text-sm"></i> การรักษา / ยาที่จ่าย</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.treatment + '</p></div>' : '';
+                        let labHtml = update.labResult ? '<div class="' + boxBase + '"><p class="text-violet-600 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-violet-500 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.labResult + '</p></div>' : '';
+                        let ceHtml = update.ce ? '<div class="' + boxBase + '"><p class="text-rose-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-rose-500 text-sm"></i> Client Education (CE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.ce + '</p></div>' : '';
                         let imageHtml = update.imageUrl ? '<img src="' + update.imageUrl + '" onclick="window.openImageModal(this.src)" class="mt-2 rounded-xl max-h-48 border border-gray-200 object-cover hover:opacity-90 transition cursor-zoom-in shadow-sm" alt="ภาพอัปเดต">' : '';
 
                         let timestampHtml = update.timestamp || '';
@@ -1923,7 +1953,7 @@
                 const now = new Date();
                 const timeString = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
                 const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
-                const targetLog = petLogs.find(l => l.id === id);
+                const targetLog = window.petLogs.find(l => l.id === id);
                 const currentUpdates = targetLog.updates || [];
                 
                 const newUpdateObj = { 
@@ -1983,7 +2013,7 @@
             btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-white"></i> บันทึก...';
             btn.disabled = true;
 
-            const targetLog = petLogs.find(l => l.id === id);
+            const targetLog = window.petLogs.find(l => l.id === id);
             const currentUpdates = [...targetLog.updates];
             let imageUrl = currentUpdates[index].imageUrl || null;
 
@@ -2050,7 +2080,7 @@
                 await updateDoc(doc(db, 'clinics', 'my-clinic', 'petLogs', id), {
                     petName: newName, ownerPhone: newPhone, species: newSpecies, dob: newDob, symptoms: newSymptoms
                 });
-                const targetLog = petLogs.find(l => l.id === id);
+                const targetLog = window.petLogs.find(l => l.id === id);
                 targetLog.petName = newName; targetLog.ownerPhone = newPhone; targetLog.species = newSpecies; targetLog.dob = newDob; targetLog.symptoms = newSymptoms;
                 window.renderLogs();
                 showAlert("บันทึกการแก้ไขเคสแล้ว", "success");
@@ -2063,7 +2093,7 @@
         };
 
         window.openChartModal = function(id) {
-            const log = petLogs.find(l => l.id === id);
+            const log = window.petLogs.find(l => l.id === id);
             if (!log || !log.updates) return;
 
             const chartModal = document.getElementById('chartModal');
@@ -2097,8 +2127,8 @@
                 data.bun.push(u.labData.bun); data.creat.push(u.labData.creat); data.alt.push(u.labData.alt); data.ast.push(u.labData.ast); data.alp.push(u.labData.alp);
             });
 
-            activeCharts.forEach(chart => chart.destroy());
-            activeCharts = [];
+            window.activeCharts.forEach(chart => chart.destroy());
+            window.activeCharts = [];
 
             const commonOptions = {
                 responsive: true, maintainAspectRatio: false, spanGaps: true, 
@@ -2108,19 +2138,19 @@
             };
 
             const ctxRBC = document.getElementById('chart-rbc').getContext('2d');
-            activeCharts.push(new Chart(ctxRBC, { type: 'line', data: { labels: labels, datasets: [ { label: 'Hct (%)', data: data.hct, borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'MCV (fL)', data: data.mcv, borderColor: '#ea580c', backgroundColor: '#ea580c', borderWidth: 2.5, tension: 0.3, pointRadius: 4 }, { label: 'MCHC (g/dL)', data: data.mchc, borderColor: '#9a3412', backgroundColor: '#9a3412', borderWidth: 2.5, tension: 0.3, pointRadius: 4 } ] }, options: commonOptions }));
+            window.activeCharts.push(new Chart(ctxRBC, { type: 'line', data: { labels: labels, datasets: [ { label: 'Hct (%)', data: data.hct, borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'MCV (fL)', data: data.mcv, borderColor: '#ea580c', backgroundColor: '#ea580c', borderWidth: 2.5, tension: 0.3, pointRadius: 4 }, { label: 'MCHC (g/dL)', data: data.mchc, borderColor: '#9a3412', backgroundColor: '#9a3412', borderWidth: 2.5, tension: 0.3, pointRadius: 4 } ] }, options: commonOptions }));
 
             const ctxWBC = document.getElementById('chart-wbc').getContext('2d');
-            activeCharts.push(new Chart(ctxWBC, { data: { labels: labels, datasets: [ { type: 'line', label: 'WBC Total (x10³)', data: data.wbc, borderColor: '#081d43', backgroundColor: '#081d43', borderWidth: 3.5, tension: 0.3, pointRadius: 5, pointHoverRadius: 7, order: 0 }, { type: 'bar', label: 'Neu (count)', data: data.neu_count, backgroundColor: '#1e3a8a', stack: 'Stack 0', borderRadius: 4, order: 1 }, { type: 'bar', label: 'Lym (count)', data: data.lym_count, backgroundColor: '#2563eb', stack: 'Stack 0', borderRadius: 4, order: 2 }, { type: 'bar', label: 'Mono (count)', data: data.mono_count, backgroundColor: '#3b82f6', stack: 'Stack 0', borderRadius: 4, order: 3 }, { type: 'bar', label: 'Eos (count)', data: data.eos_count, backgroundColor: '#60a5fa', stack: 'Stack 0', borderRadius: 4, order: 4 }, { type: 'bar', label: 'Baso (count)', data: data.baso_count, backgroundColor: '#93c5fd', stack: 'Stack 0', borderRadius: 4, order: 5 } ] }, options: { ...commonOptions, scales: { x: { ...commonOptions.scales.x, stacked: true }, y: { ...commonOptions.scales.y, title: { display: true, text: 'Count (x10³)', font: { family: 'Inter', size: 11 } } } } } }));
+            window.activeCharts.push(new Chart(ctxWBC, { data: { labels: labels, datasets: [ { type: 'line', label: 'WBC Total (x10³)', data: data.wbc, borderColor: '#081d43', backgroundColor: '#081d43', borderWidth: 3.5, tension: 0.3, pointRadius: 5, pointHoverRadius: 7, order: 0 }, { type: 'bar', label: 'Neu (count)', data: data.neu_count, backgroundColor: '#1e3a8a', stack: 'Stack 0', borderRadius: 4, order: 1 }, { type: 'bar', label: 'Lym (count)', data: data.lym_count, backgroundColor: '#2563eb', stack: 'Stack 0', borderRadius: 4, order: 2 }, { type: 'bar', label: 'Mono (count)', data: data.mono_count, backgroundColor: '#3b82f6', stack: 'Stack 0', borderRadius: 4, order: 3 }, { type: 'bar', label: 'Eos (count)', data: data.eos_count, backgroundColor: '#60a5fa', stack: 'Stack 0', borderRadius: 4, order: 4 }, { type: 'bar', label: 'Baso (count)', data: data.baso_count, backgroundColor: '#93c5fd', stack: 'Stack 0', borderRadius: 4, order: 5 } ] }, options: { ...commonOptions, scales: { x: { ...commonOptions.scales.x, stacked: true }, y: { ...commonOptions.scales.y, title: { display: true, text: 'Count (x10³)', font: { family: 'Inter', size: 11 } } } } } }));
 
             const ctxPLT = document.getElementById('chart-plt').getContext('2d');
-            activeCharts.push(new Chart(ctxPLT, { type: 'line', data: { labels: labels, datasets: [ { label: 'PLT (x10³)', data: data.plt, borderColor: '#0d9488', backgroundColor: '#0d9488', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 } ] }, options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'PLT (x10³)', font: { family: 'Inter', size: 11 } } } } } }));
+            window.activeCharts.push(new Chart(ctxPLT, { type: 'line', data: { labels: labels, datasets: [ { label: 'PLT (x10³)', data: data.plt, borderColor: '#0d9488', backgroundColor: '#0d9488', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 } ] }, options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'PLT (x10³)', font: { family: 'Inter', size: 11 } } } } } }));
 
             const ctxLiver = document.getElementById('chart-liver').getContext('2d');
-            activeCharts.push(new Chart(ctxLiver, { type: 'line', data: { labels: labels, datasets: [ { label: 'ALT (U/L)', data: data.alt, borderColor: '#16a34a', backgroundColor: '#16a34a', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'AST (U/L)', data: data.ast, borderColor: '#15803d', backgroundColor: '#15803d', borderWidth: 2.5, borderDash: [4, 4], tension: 0.3, pointRadius: 4 }, { label: 'ALP (U/L)', data: data.alp, borderColor: '#14532d', backgroundColor: '#14532d', borderWidth: 2.5, tension: 0.3, pointRadius: 4 } ] }, options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'Enzymes (U/L)', font: { family: 'Inter', size: 11 } } } } } }));
+            window.activeCharts.push(new Chart(ctxLiver, { type: 'line', data: { labels: labels, datasets: [ { label: 'ALT (U/L)', data: data.alt, borderColor: '#16a34a', backgroundColor: '#16a34a', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'AST (U/L)', data: data.ast, borderColor: '#15803d', backgroundColor: '#15803d', borderWidth: 2.5, borderDash: [4, 4], tension: 0.3, pointRadius: 4 }, { label: 'ALP (U/L)', data: data.alp, borderColor: '#14532d', backgroundColor: '#14532d', borderWidth: 2.5, tension: 0.3, pointRadius: 4 } ] }, options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'Enzymes (U/L)', font: { family: 'Inter', size: 11 } } } } } }));
 
             const ctxKidney = document.getElementById('chart-kidney').getContext('2d');
-            activeCharts.push(new Chart(ctxKidney, { type: 'line', data: { labels: labels, datasets: [ { label: 'BUN (mg/dL)', data: data.bun, borderColor: '#f59e0b', backgroundColor: '#f59e0b', yAxisID: 'y', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'Creatinine (mg/dL)', data: data.creat, borderColor: '#b45309', backgroundColor: '#b45309', yAxisID: 'y1', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 } ] }, options: { ...commonOptions, scales: { x: commonOptions.scales.x, y: { ...commonOptions.scales.y, type: 'linear', display: true, position: 'left', title: { display: true, text: 'BUN (mg/dL)', font: { family: 'Inter', size: 11 } } }, y1: { ...commonOptions.scales.y, type: 'linear', display: true, position: 'right', title: { display: true, text: 'Creatinine (mg/dL)', font: { family: 'Inter', size: 11 } }, grid: { drawOnChartArea: false } } } } }));
+            window.activeCharts.push(new Chart(ctxKidney, { type: 'line', data: { labels: labels, datasets: [ { label: 'BUN (mg/dL)', data: data.bun, borderColor: '#f59e0b', backgroundColor: '#f59e0b', yAxisID: 'y', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'Creatinine (mg/dL)', data: data.creat, borderColor: '#b45309', backgroundColor: '#b45309', yAxisID: 'y1', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 } ] }, options: { ...commonOptions, scales: { x: commonOptions.scales.x, y: { ...commonOptions.scales.y, type: 'linear', display: true, position: 'left', title: { display: true, text: 'BUN (mg/dL)', font: { family: 'Inter', size: 11 } } }, y1: { ...commonOptions.scales.y, type: 'linear', display: true, position: 'right', title: { display: true, text: 'Creatinine (mg/dL)', font: { family: 'Inter', size: 11 } }, grid: { drawOnChartArea: false } } } } }));
         };
 
         window.closeChartModal = function() {
@@ -2138,65 +2168,11 @@
                 } else { updateData.dischargeDate = null; }
 
                 await updateDoc(docRef, updateData);
-                const targetLog = petLogs.find(l => l.id === id);
+                const targetLog = window.petLogs.find(l => l.id === id);
                 targetLog.isDischarged = isChecked; targetLog.dischargeDate = updateData.dischargeDate;
                 window.renderLogs();
             } catch (error) { console.error("Error updating discharge status: ", error); }
         };
-
-        // ================= ฟังก์ชันบันทึกเคสใหม่ =================
-        document.getElementById('logForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            const origText = btn.innerHTML;
-            btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-white"></i> บันทึก...';
-            btn.disabled = true;
-
-            const caseType = document.querySelector('input[name="caseType"]:checked').value;
-            const newLog = {
-                petId: document.getElementById('petId').value.trim(),
-                petName: document.getElementById('petName').value.trim(),
-                species: document.getElementById('species').value,
-                dob: document.getElementById('dob').value,
-                ownerPhone: document.getElementById('ownerPhone').value.trim(),
-                date: document.getElementById('date').value,
-                symptoms: document.getElementById('symptoms').value.trim(),
-                caseType: caseType,
-                updates: [],
-                isDischarged: false,
-                dischargeDate: null,
-                createdAt: new Date().toISOString()
-            };
-
-            try {
-                const newDoc = doc(logsRef); 
-                await setDoc(newDoc, newLog);
-                
-                // อัปเดตข้อมูลเข้าตัวแปรหลักเพื่อแสดงผลทันที
-                const savedLog = { id: newDoc.id, ...newLog };
-                window.allClinicLogs.unshift(savedLog);
-                window.petLogs.unshift(savedLog);
-                
-                // จัดเรียง
-                window.petLogs.sort((a, b) => {
-                    if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
-                    return new Date(b.createdAt) - new Date(a.createdAt);
-                });
-                
-                // เคลียร์ฟอร์ม
-                document.getElementById('logForm').reset();
-                document.getElementById('date').valueAsDate = new Date();
-                
-                window.renderLogs();
-                showAlert("บันทึกเคสใหม่เรียบร้อย", "success");
-            } catch(e) {
-                console.error(e);
-                showAlert("เกิดข้อผิดพลาดในการบันทึก", "error");
-            } finally {
-                btn.innerHTML = origText;
-                btn.disabled = false;
-            }
-        });
 
     </script>
 </body>
