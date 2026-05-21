@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pet Health Log Book</title>
+    <title>Pet Health Log Book & Appointments</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -45,30 +45,42 @@
         
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Modal Animation */
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
+        .modal-exit { opacity: 1; transform: scale(1); }
+        .modal-exit-active { opacity: 0; transform: scale(0.95); transition: all 0.2s ease-in; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen">
 
     <nav class="bg-cozy-green text-white sticky top-0 z-40 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <div class="bg-white/20 p-1.5 rounded-lg backdrop-blur-sm">
-                    <i class="ph ph-paw-print text-2xl text-white"></i>
-                </div>
-                <h1 class="text-xl font-bold tracking-wide">Pet Health LogBook</h1>
+            <div class="flex items-center gap-3">
+                <i class="ph ph-leaf text-2xl text-white"></i>
+                <h1 class="text-lg font-bold tracking-wide hidden sm:block">ระบบติดตามอาการสัตว์ป่วย</h1>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="text-white/90 text-sm hidden sm:flex items-center gap-1.5 font-medium">
-                    <i class="ph ph-leaf text-lg text-white"></i> ระบบติดตามอาการสัตว์ป่วย
-                </div>
-                <button onclick="window.openSettings()" class="bg-white/20 p-2 rounded-lg hover:bg-white/30 transition shadow-sm border border-white/10" title="ตั้งค่า AI">
+
+            <!-- Navbar Actions -->
+            <div class="flex items-center gap-3">
+                <button onclick="window.openApptDashboard()" class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white font-bold text-sm px-3.5 py-2 rounded-lg transition border border-white/10 shadow-sm">
+                    <i class="ph-bold ph-calendar-blank text-lg"></i> ตารางนัด
+                </button>
+                <button onclick="window.openSettings()" class="bg-white/20 p-2 rounded-lg hover:bg-white/30 transition shadow-sm border border-white/10" title="ตั้งค่าระบบ">
                     <i class="ph-fill ph-gear text-lg text-white"></i>
                 </button>
             </div>
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- ================= VIEW: LOGBOOK ================= -->
+    <div id="logbookView" class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         <!-- Left Column: Form -->
         <div class="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
@@ -82,38 +94,38 @@
                     <div class="grid grid-cols-2 gap-3">
                         <label class="cursor-pointer">
                             <input type="radio" name="caseType" value="OPD" class="peer sr-only" checked>
-                            <div class="text-center px-4 py-2.5 rounded-xl border border-gray-300 bg-gray-50 text-gray-500 font-bold peer-checked:bg-blue-50 peer-checked:border-blue-300 peer-checked:text-blue-600 transition-all hover:bg-gray-100">
-                                ผู้ป่วยนอก (OPD)
-                            </div>
+                            <div class="text-center px-4 py-2.5 rounded-xl border border-gray-300 bg-gray-50 text-gray-500 font-bold peer-checked:bg-blue-50 peer-checked:border-blue-300 peer-checked:text-blue-600 transition-all hover:bg-gray-100">ผู้ป่วยนอก (OPD)</div>
                         </label>
                         <label class="cursor-pointer">
                             <input type="radio" name="caseType" value="IPD" class="peer sr-only">
-                            <div class="text-center px-4 py-2.5 rounded-xl border border-gray-300 bg-gray-50 text-gray-500 font-bold peer-checked:bg-red-50 peer-checked:border-red-300 peer-checked:text-red-500 transition-all hover:bg-gray-100">
-                                แอดมิท (IPD)
-                            </div>
+                            <div class="text-center px-4 py-2.5 rounded-xl border border-gray-300 bg-gray-50 text-gray-500 font-bold peer-checked:bg-red-50 peer-checked:border-red-300 peer-checked:text-red-500 transition-all hover:bg-gray-100">แอดมิท (IPD)</div>
                         </label>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1.5">รหัสสัตว์ป่วย (ID)</label>
-                            <input type="text" id="petId" required placeholder="เช่น HN1234" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold placeholder:text-gray-400">
+                            <label class="flex justify-between items-center text-xs font-bold text-gray-700 mb-1.5">
+                                <span>รหัสสัตว์ป่วย (ID)</span>
+                                <button type="button" onclick="window.searchExistingPet()" class="text-blue-600 hover:text-blue-800 flex items-center gap-1 transition" title="ดึงข้อมูลเดิมอัตโนมัติ"><i class="ph-bold ph-magnifying-glass"></i> ค้นหา</button>
+                            </label>
+                            <input type="text" id="petId" onblur="window.searchExistingPet()" required placeholder="เช่น HN1234" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm font-bold">
+                            <p id="petSearchStatus" class="text-[10px] font-bold mt-1 hidden"></p>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-700 mb-1.5">วันที่รับเข้า</label>
-                            <input type="date" id="date" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold">
+                            <input type="date" id="date" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm font-bold">
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">ชื่อสัตว์เลี้ยง</label>
-                        <input type="text" id="petName" required placeholder="ชื่อน้องหมา/น้องแมว" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold placeholder:text-gray-400">
+                        <input type="text" id="petName" required placeholder="ชื่อน้องหมา/น้องแมว" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm font-bold">
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-700 mb-1.5">ประเภทสัตว์</label>
-                            <select id="species" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold cursor-pointer">
+                            <select id="species" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm font-bold cursor-pointer">
                                 <option value="สุนัข">🐶 สุนัข (Dog)</option>
                                 <option value="แมว">🐱 แมว (Cat)</option>
                                 <option value="อื่นๆ">🐰 อื่นๆ (Exotic)</option>
@@ -121,40 +133,38 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-700 mb-1.5">วันเกิด (โดยประมาณ)</label>
-                            <input type="date" id="dob" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold">
+                            <input type="date" id="dob" required class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm font-bold">
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">เบอร์โทรติดต่อ (เจ้าของ)</label>
-                        <input type="tel" id="ownerPhone" placeholder="08X-XXX-XXXX" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm text-gray-900 font-bold placeholder:text-gray-400">
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">เบอร์โทรติดต่อ</label>
+                        <input type="tel" id="ownerPhone" placeholder="08X-XXX-XXXX" class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm font-bold">
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">อาการสำคัญ (Chief Complaint)</label>
-                        <textarea id="symptoms" required rows="3" placeholder="ระบุอาการตอนรับเข้า..." class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition outline-none text-sm resize-none text-gray-900 font-bold placeholder:text-gray-400"></textarea>
+                        <textarea id="symptoms" required rows="3" placeholder="ระบุอาการตอนรับเข้า..." class="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm resize-none font-bold"></textarea>
                     </div>
 
-                    <button type="submit" id="submitBtn" class="w-full bg-cozy-green text-white font-bold py-3 rounded-xl hover:bg-cozy-greenDark active:scale-[0.98] transition-all flex justify-center items-center gap-2 mt-4 shadow-sm">
-                        <i class="ph ph-floppy-disk text-lg text-white"></i>
-                        <span>บันทึกข้อมูลเข้าระบบ</span>
+                    <button type="submit" id="submitBtn" class="w-full bg-cozy-green text-white font-bold py-3 rounded-xl hover:bg-cozy-greenDark transition flex justify-center items-center gap-2 mt-4 shadow-sm">
+                        <i class="ph ph-floppy-disk text-lg text-white"></i> บันทึกข้อมูลเข้าระบบ
                     </button>
                 </form>
             </div>
         </div>
 
+        <!-- Right Column: Logs Data -->
         <div class="lg:col-span-8 flex flex-col gap-5">
-            
             <!-- Filters -->
             <div class="bg-white p-4 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-4 items-center shadow-sm">
                 <div class="flex-1 w-full relative">
                     <i class="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
-                    <input type="text" id="searchInput" placeholder="ค้นหาชื่อสัตว์, ID หรือ เบอร์โทร..."
-                        class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition-colors outline-none text-sm text-gray-900 font-bold placeholder:text-gray-400">
+                    <input type="text" id="searchInput" placeholder="ค้นหาชื่อสัตว์, ID หรือ เบอร์โทร..." class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cozy-green outline-none text-sm font-bold">
                 </div>
                 <div class="w-full md:w-44 relative shrink-0">
                     <label class="absolute -top-2 left-3 bg-white px-1.5 text-[10px] font-bold text-gray-500 rounded-full border border-gray-200 z-10">ประเภทเคส</label>
-                    <select id="typeFilter" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition-colors outline-none text-sm cursor-pointer font-bold appearance-none relative z-0">
+                    <select id="typeFilter" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 rounded-xl outline-none text-sm cursor-pointer font-bold appearance-none">
                         <option value="ALL">ทั้งหมด</option>
                         <option value="OPD">เฉพาะ OPD</option>
                         <option value="IPD">เฉพาะ IPD</option>
@@ -163,11 +173,11 @@
                 </div>
                 <div class="w-full md:w-48 relative shrink-0">
                     <label for="monthFilter" class="absolute -top-2 left-3 bg-white px-1.5 text-[10px] font-bold text-gray-500 rounded-full border border-gray-200 z-10">เลือกเดือน</label>
-                    <input type="month" id="monthFilter" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-cozy-green focus:border-cozy-green transition-colors outline-none text-sm cursor-pointer font-bold relative z-0">
+                    <input type="month" id="monthFilter" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 rounded-xl outline-none text-sm cursor-pointer font-bold">
                 </div>
             </div>
 
-            <!-- Loading & Empty States -->
+            <!-- Loading & Empty -->
             <div id="loadingState" class="hidden py-16 flex flex-col items-center justify-center text-gray-400">
                 <i class="ph ph-spinner-gap text-4xl animate-spin mb-3 text-cozy-green"></i>
                 <p class="font-medium text-sm">กำลังโหลดข้อมูล...</p>
@@ -183,42 +193,268 @@
 
             <!-- Logs Container -->
             <div id="logsContainer" class="space-y-5"></div>
+        </div>
+    </div>
+
+
+    <!-- ================= APPOINTMENT DASHBOARD MODAL ================= -->
+    <div id="apptDashboardModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity">
+        <div class="bg-gray-50 w-full h-full sm:w-[95%] sm:h-[95vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden modal-enter" id="apptDashboardContent">
             
+            <!-- Header แบบในภาพ -->
+            <div class="bg-white px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 shrink-0 gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-50 text-blue-600 p-2.5 rounded-xl border border-blue-100 flex items-center justify-center">
+                        <i class="ph-bold ph-calendar-blank text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-bold text-gray-800">ตารางนัดหมายคลินิกทั้งหมด</h2>
+                        <p class="text-[11px] sm:text-xs font-bold text-gray-500 mt-0.5">รวมทั้งรายการนัดตรวจและนัดวัคซีน/ป้องกันเห็บหมัด</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3 self-end sm:self-auto">
+                    <!-- Toggle แบบรายการ / แบบปฏิทิน -->
+                    <div class="bg-gray-50 p-1 rounded-xl flex font-bold text-xs sm:text-sm border border-gray-200 shadow-inner">
+                        <button id="apptTabList" onclick="window.switchApptDashboardView('list')" class="px-3 sm:px-4 py-1.5 rounded-lg bg-white shadow-sm text-gray-800 transition">แบบรายการ</button>
+                        <button id="apptTabCal" onclick="window.switchApptDashboardView('calendar')" class="px-3 sm:px-4 py-1.5 rounded-lg text-gray-500 hover:text-gray-700 transition">แบบปฏิทิน</button>
+                    </div>
+                    <button onclick="window.closeApptDashboard()" class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-red-500 transition shadow-sm bg-white">
+                        <i class="ph ph-x text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-hidden relative">
+                
+                <!-- 1. แบบรายการ (List View) -->
+                <div id="apptDashboardListView" class="absolute inset-0 overflow-y-auto custom-scrollbar p-3 sm:p-6 bg-gray-50/50">
+                    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm max-w-6xl mx-auto">
+                        <!-- Header Row (Hidden on mobile) -->
+                        <div class="hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 tracking-wide">
+                            <div class="col-span-3">วันที่นัด</div>
+                            <div class="col-span-3">สัตว์ป่วย</div>
+                            <div class="col-span-3">สาเหตุ / รายการ</div>
+                            <div class="col-span-2">เบอร์ติดต่อ</div>
+                            <div class="col-span-1 text-center">จัดการ</div>
+                        </div>
+                        
+                        <!-- List Container -->
+                        <div id="apptDashboardListContainer" class="divide-y divide-gray-100">
+                            <!-- JS Renders List Here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. แบบปฏิทิน (Calendar View) -->
+                <div id="apptDashboardCalView" class="absolute inset-0 overflow-y-auto custom-scrollbar p-3 sm:p-6 bg-gray-50/50 hidden">
+                    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6 max-w-5xl mx-auto">
+                        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><i class="ph-fill ph-calendar-blank text-blue-500"></i> ปฏิทินรายเดือน</h2>
+                                <p class="text-xs text-gray-500 font-bold mt-1">คลิกที่วันที่เพื่อดูรายละเอียดนัด</p>
+                            </div>
+                            <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200 shadow-inner">
+                                <button onclick="window.changeCalendarMonth(-1)" class="p-2 bg-white rounded-lg hover:bg-gray-100 text-gray-600 transition shadow-sm border border-gray-200"><i class="ph-bold ph-caret-left"></i></button>
+                                <h3 id="calendarMonthYear" class="w-32 text-center font-bold text-gray-800 text-sm sm:text-base">มกราคม 2024</h3>
+                                <button onclick="window.changeCalendarMonth(1)" class="p-2 bg-white rounded-lg hover:bg-gray-100 text-gray-600 transition shadow-sm border border-gray-200"><i class="ph-bold ph-caret-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="w-full">
+                            <div class="grid grid-cols-7 gap-2 mb-2">
+                                <div class="text-center text-xs font-bold text-red-500 py-2">อา.</div>
+                                <div class="text-center text-xs font-bold text-gray-500 py-2">จ.</div>
+                                <div class="text-center text-xs font-bold text-gray-500 py-2">อ.</div>
+                                <div class="text-center text-xs font-bold text-gray-500 py-2">พ.</div>
+                                <div class="text-center text-xs font-bold text-gray-500 py-2">พฤ.</div>
+                                <div class="text-center text-xs font-bold text-gray-500 py-2">ศ.</div>
+                                <div class="text-center text-xs font-bold text-blue-500 py-2">ส.</div>
+                            </div>
+                            <div id="calendarGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2 auto-rows-fr"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= MODALS (APPOINTMENT & DAY) ================= -->
+    <div id="appointmentModal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity" onclick="if(event.target === this) window.closeAppointmentModal()">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-lg mx-4 shadow-2xl modal-enter flex flex-col max-h-[90vh]" id="appointmentModalContent">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+                <h3 id="apptModalTitle" class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph-fill ph-calendar-plus text-blue-600 text-xl"></i> สร้างนัดหมายใหม่
+                </h3>
+                <button type="button" onclick="window.closeAppointmentModal()" class="text-gray-400 hover:text-red-500 bg-gray-50 p-1.5 rounded-full transition"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+            
+            <form id="appointmentForm" class="space-y-4 overflow-y-auto custom-scrollbar p-1">
+                <input type="hidden" id="apptId">
+                <input type="hidden" id="apptPetId">
+                
+                <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 mb-4 flex justify-between items-center">
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-500">นัดหมายสำหรับ</p>
+                        <p id="apptDisplayPetName" class="font-bold text-gray-800 text-base"></p>
+                    </div>
+                    <p id="apptDisplayPhone" class="text-xs font-bold text-gray-500 flex items-center gap-1"><i class="ph-fill ph-phone text-blue-500"></i> <span></span></p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">วันที่นัด</label>
+                        <input type="date" id="apptDate" required class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl focus:border-blue-500 outline-none text-sm font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">เวลา (ถ้ามี)</label>
+                        <input type="time" id="apptTime" class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl focus:border-blue-500 outline-none text-sm font-bold">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5">ประเภทนัดหมาย</label>
+                    <select id="apptType" required class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl focus:border-blue-500 outline-none text-sm font-bold cursor-pointer">
+                        <option value="" disabled selected>-- เลือกประเภท --</option>
+                        <option value="ตรวจติดตามอาการ">ตรวจติดตามอาการ (Follow-up)</option>
+                        <optgroup label="วัคซีน & ป้องกัน (Vaccine & Prevention)">
+                            <option value="วัคซีนลิวคีเมีย (Nobivac)">วัคซีนลิวคีเมีย (Leukemia)</option>
+                            <option value="วัคซีนรวม (Core Vaccine)">วัคซีนรวม (Core Vaccine)</option>
+                            <option value="วัคซีนพิษสุนัขบ้า (Rabies)">วัคซีนพิษสุนัขบ้า (Rabies)</option>
+                            <option value="ถ่ายพยาธิ / ป้องกันเห็บหมัด">ถ่ายพยาธิ / ป้องกันเห็บหมัด</option>
+                        </optgroup>
+                        <option value="ตัดไหม / ทำแผล">ตัดไหม / ทำแผล</option>
+                        <option value="ผ่าตัด / วางยาสลบ">ผ่าตัด / วางยาสลบ</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5">หมายเหตุเพิ่มเติม</label>
+                    <textarea id="apptNote" rows="2" placeholder="เช่น ให้งดน้ำงดอาหาร, แจ้งเจ้าของ..." class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl focus:border-blue-500 outline-none text-sm resize-none font-bold"></textarea>
+                </div>
+
+                <div class="pt-2 flex gap-3 mt-2">
+                    <button type="button" onclick="window.closeAppointmentModal()" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition">ยกเลิก</button>
+                    <button type="submit" id="saveApptBtn" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-sm flex justify-center items-center gap-2">
+                        <i class="ph-bold ph-calendar-check"></i> บันทึกนัด
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: รายการนัดหมายแบบเจาะจงวัน (Day Details) -->
+    <div id="dayAppointmentsModal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity" onclick="if(event.target === this) window.closeDayApptModal()">
+        <div class="bg-white rounded-3xl w-full max-w-xl mx-4 shadow-2xl modal-enter flex flex-col max-h-[85vh]" id="dayAppointmentsModalContent">
+            <div class="flex justify-between items-center p-5 border-b border-gray-100">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="ph-fill ph-calendar-dots text-blue-500 text-xl"></i> คิวนัดหมาย</h3>
+                    <p id="dayApptDateDisplay" class="text-sm font-bold text-blue-500 mt-0.5">วันที่...</p>
+                </div>
+                <button type="button" onclick="window.closeDayApptModal()" class="text-gray-400 hover:text-red-500 bg-gray-50 p-1.5 rounded-full transition"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto custom-scrollbar flex-1 bg-gray-50 rounded-b-3xl" id="dayApptListContainer"></div>
+        </div>
+    </div>
+
+    <!-- Patient Profile Modal (แฟ้มประวัติหลัก) -->
+    <div id="patientProfileModal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity">
+        <div class="bg-gray-50 rounded-3xl w-full max-w-4xl max-h-[90vh] mx-4 shadow-2xl flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200 bg-white shadow-sm z-10">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="ph-fill ph-folder-user text-blue-600 text-xl"></i> แฟ้มประวัติสัตว์ป่วย (Master Record)</h3>
+                <button onclick="window.closePatientProfile()" class="text-gray-400 hover:text-red-500 bg-gray-50 rounded-full p-2 border border-gray-200 transition shadow-sm"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            
+            <div class="flex gap-6 border-b border-gray-200 px-6 pt-3 bg-white">
+                <button onclick="window.switchProfileTab('history')" id="tab-history" class="pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-1.5"><i class="ph-bold ph-stethoscope"></i> ประวัติการรักษา</button>
+                <button onclick="window.switchProfileTab('preventive')" id="tab-preventive" class="pb-3 text-sm font-bold text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition flex items-center gap-1.5"><i class="ph-bold ph-syringe"></i> วัคซีน & ป้องกันเห็บหมัด</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 flex flex-col gap-6">
+                <div id="profileHeaderContent" class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm shrink-0"></div>
+                <div id="view-history">
+                    <h4 class="text-sm font-bold text-gray-700 mb-4 flex items-center gap-1.5 px-1"><i class="ph-fill ph-clock-counter-clockwise text-cozy-green text-lg"></i> ประวัติการเข้าคลินิกย้อนหลัง</h4>
+                    <div id="profileHistoryList" class="space-y-4"></div>
+                </div>
+                <div id="view-preventive" class="hidden">
+                    <div class="bg-white border border-blue-200 rounded-2xl p-5 shadow-sm mb-6 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                        <h4 class="text-sm font-bold text-blue-700 mb-4 flex items-center gap-1.5"><i class="ph-fill ph-plus-circle text-lg"></i> บันทึกรายการใหม่</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                            <div class="md:col-span-1">
+                                <label class="block text-[10px] font-bold text-gray-500 mb-1">ประเภท</label>
+                                <select id="prev-type" class="w-full text-xs font-semibold px-2 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer">
+                                    <option value="วัคซีนรวม">วัคซีนรวม</option>
+                                    <option value="วัคซีนลิวคีเมีย">วัคซีนลิวคีเมีย</option>
+                                    <option value="วัคซีนพิษสุนัขบ้า">วัคซีนพิษสุนัขบ้า</option>
+                                    <option value="ป้องกันเห็บหมัด/พยาธิหนอนหัวใจ">ป้องกันเห็บหมัด/พยาธิหนอนหัวใจ</option>
+                                    <option value="ถ่ายพยาธิลำไส้">ถ่ายพยาธิลำไส้</option>
+                                    <option value="อื่นๆ">อื่นๆ</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[10px] font-bold text-gray-500 mb-1">รายการ / ยี่ห้อ</label>
+                                <input type="text" id="prev-name" placeholder="เช่น Bravecto, Nexgard, Vanguard..." class="w-full text-xs font-semibold px-3 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="block text-[10px] font-bold text-gray-500 mb-1">วันที่รับบริการ</label>
+                                <input type="date" id="prev-date" class="w-full text-xs font-semibold px-2 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="block text-[10px] font-bold text-gray-500 mb-1">นัดหมายครั้งต่อไป</label>
+                                <input type="date" id="prev-next" class="w-full text-xs font-semibold px-2 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div class="flex justify-end mt-4">
+                            <button id="btn-add-prev" onclick="window.addPreventive()" class="text-xs font-bold px-4 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition shadow-sm flex items-center gap-1.5"><i class="ph-bold ph-floppy-disk"></i> บันทึกรายการ</button>
+                        </div>
+                    </div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5 px-1"><i class="ph-fill ph-list-dashes text-teal-500 text-lg"></i> ประวัติวัคซีนและยาป้องกันทั้งหมด</h4>
+                    <div id="preventiveTableContainer"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Chart Modal -->
     <div id="chartModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] mx-4 shadow-2xl flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
+        <div class="bg-gray-50 rounded-3xl w-full max-w-5xl max-h-[90vh] mx-4 shadow-2xl flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200 bg-white">
                 <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="ph-fill ph-trend-up text-blue-500 text-xl"></i> กราฟแนวโน้มค่าเลือด (Lab Trends)</h3>
-                <button onclick="window.closeChartModal()" class="text-gray-400 hover:text-red-500 bg-white rounded-full p-1.5 border border-gray-200 transition shadow-sm">
-                    <i class="ph ph-x text-lg"></i>
-                </button>
+                <button onclick="window.closeChartModal()" class="text-gray-400 hover:text-red-500 bg-gray-50 rounded-full p-2 border border-gray-200 transition shadow-sm"><i class="ph ph-x text-lg"></i></button>
             </div>
             
-            <div class="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
                 <!-- กราฟที่ 1: RBC Panel -->
-                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                    <h4 class="text-sm font-bold text-red-600 mb-3 text-center border-b border-gray-100 pb-2">🔴 RBC Panel (Hct, MCV, MCHC)</h4>
-                    <div class="h-64 relative w-full">
-                        <canvas id="chart-rbc"></canvas>
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                    <h4 class="text-sm font-bold text-red-700 mb-3 border-b border-gray-100 pb-2 flex items-center gap-2"><i class="ph-fill ph-drop text-lg text-red-600"></i> RBC Panel (Hct, MCV, MCHC)</h4>
+                    <div class="h-56 relative w-full"><canvas id="chart-rbc"></canvas></div>
+                </div>
+
+                <!-- กราฟที่ 2: WBC และ PLT -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                        <h4 class="text-sm font-bold text-blue-700 mb-3 border-b border-gray-100 pb-2 flex items-center gap-2"><i class="ph-fill ph-virus text-lg text-blue-600"></i> WBC Panel</h4>
+                        <div class="h-56 relative w-full"><canvas id="chart-wbc"></canvas></div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                        <h4 class="text-sm font-bold text-teal-700 mb-3 border-b border-gray-100 pb-2 flex items-center gap-2"><i class="ph-fill ph-bandaids text-lg text-teal-600"></i> PLT Panel</h4>
+                        <div class="h-56 relative w-full"><canvas id="chart-plt"></canvas></div>
                     </div>
                 </div>
 
-                <!-- กราฟที่ 2: WBC & PLT Panel -->
-                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                    <h4 class="text-sm font-bold text-purple-600 mb-3 text-center border-b border-gray-100 pb-2">🟣 WBC & PLT Panel</h4>
-                    <div class="h-64 relative w-full">
-                        <canvas id="chart-wbc-plt"></canvas>
+                <!-- กราฟที่ 3: Liver และ Kidney -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                        <h4 class="text-sm font-bold text-green-700 mb-3 border-b border-gray-100 pb-2 flex items-center gap-2"><i class="ph-fill ph-activity text-lg text-green-600"></i> Liver Panel</h4>
+                        <div class="h-56 relative w-full"><canvas id="chart-liver"></canvas></div>
                     </div>
-                </div>
-
-                <!-- กราฟที่ 3: Liver & Kidney Panel -->
-                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                    <h4 class="text-sm font-bold text-green-600 mb-3 text-center border-b border-gray-100 pb-2">🟢 Liver & Kidney Panel</h4>
-                    <div class="h-64 relative w-full">
-                        <canvas id="chart-chem"></canvas>
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                        <h4 class="text-sm font-bold text-amber-700 mb-3 border-b border-gray-100 pb-2 flex items-center gap-2"><i class="ph-fill ph-drop-half-bottom text-lg text-amber-600"></i> Kidney Panel</h4>
+                        <div class="h-56 relative w-full"><canvas id="chart-kidney"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -226,26 +462,26 @@
     </div>
 
     <!-- Image Modal -->
-    <div id="imageModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
+    <div id="imageModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
         <div class="relative w-full h-full flex items-center justify-center p-4">
-            <button type="button" onclick="window.closeImageModal()" class="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-md transition shadow-sm border border-white/20">
+            <button type="button" class="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-md transition shadow-sm border border-white/20">
                 <i class="ph ph-x text-xl font-bold"></i>
             </button>
-            <img id="imageModalContent" src="" class="max-w-full max-h-full rounded-2xl shadow-2xl object-contain transform scale-95 transition-transform duration-200 cursor-zoom-out" onclick="event.stopPropagation(); window.closeImageModal();" alt="Expanded Image">
+            <img id="imageModalContent" src="" class="max-w-full max-h-full rounded-2xl shadow-2xl object-contain transform scale-95 transition-transform duration-200 cursor-zoom-out" alt="Expanded Image">
         </div>
     </div>
 
-    <!-- Delete Modal -->
-    <div id="deleteModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/40 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-3xl p-7 w-full max-w-sm mx-4 shadow-2xl transform scale-95 transition-transform duration-200" id="deleteModalContent">
+    <!-- Custom Universal Delete Modal -->
+    <div id="deleteModal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-3xl p-7 w-full max-w-sm mx-4 shadow-2xl modal-enter" id="deleteModalContent">
             <div class="flex items-center justify-center w-14 h-14 rounded-full bg-red-50 mx-auto mb-4 border border-red-100">
                 <i class="ph-fill ph-warning-circle text-3xl text-red-500"></i>
             </div>
             <h3 id="deleteModalTitle" class="text-lg font-bold text-center text-gray-900 mb-2">ยืนยันการลบข้อมูล</h3>
-            <p id="deleteModalText" class="text-sm text-center text-gray-500 mb-7">คุณแน่ใจหรือไม่ว่าต้องการลบประวัตินี้?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้</p>
+            <p id="deleteModalText" class="text-sm text-center text-gray-500 mb-7">คุณแน่ใจหรือไม่?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้</p>
             <div class="flex gap-3">
                 <button onclick="window.closeDeleteModal()" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition">ยกเลิก</button>
-                <button id="confirmDeleteBtn" class="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition shadow-sm">ลบข้อมูล</button>
+                <button id="confirmDeleteBtn" class="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition shadow-sm">ยืนยันลบ</button>
             </div>
         </div>
     </div>
@@ -258,22 +494,42 @@
             </div>
             <h3 class="text-lg font-bold text-center text-gray-900 mb-2">ตั้งค่า AI วิเคราะห์ผลแล็บ</h3>
             <p class="text-sm text-center text-gray-500 mb-5">กรุณาใส่ API Key ของ Google Gemini เพื่อใช้งาน<br>(สามารถรับได้ฟรีที่ Google AI Studio)</p>
-            
-            <input type="password" id="geminiApiKey" placeholder="วาง API Key ที่นี่..." class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition outline-none text-sm text-gray-900 font-bold mb-6">
-            
+            <input type="password" id="geminiApiKey" placeholder="วาง API Key ที่นี่..." class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition outline-none text-sm font-bold mb-6">
             <div class="flex gap-3">
-                <button onclick="window.closeSettings()" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition">ยกเลิก</button>
-                <button onclick="window.saveSettings()" class="flex-1 px-4 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition shadow-sm">บันทึกคีย์</button>
+                <button onclick="window.closeSettings()" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50">ยกเลิก</button>
+                <button onclick="window.saveSettings()" class="flex-1 px-4 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 shadow-sm">บันทึกคีย์</button>
             </div>
         </div>
     </div>
 
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[120] flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // Custom Alert (Toast)
+        window.showAlert = function(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const isError = type === 'error' || message.includes('ข้อผิดพลาด') || message.includes('ไม่สำเร็จ');
+            
+            toast.className = `px-4 py-3 rounded-xl shadow-lg text-white font-bold text-sm transform transition-all duration-300 translate-y-full opacity-0 flex items-start gap-2 ${isError ? 'bg-red-500' : 'bg-gray-800'} max-w-sm pointer-events-auto`;
+            toast.innerHTML = `<i class="ph-fill ${isError ? 'ph-warning-circle' : 'ph-check-circle'} text-lg mt-0.5 shrink-0"></i> <span>${message.replace(/\n/g, '<br>')}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-full', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        window.alert = window.showAlert;
+    </script>
+
     <!-- Firebase & JS Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, query, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, query, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
         const firebaseConfig = {
@@ -282,8 +538,7 @@
             projectId: "vetd-4a601",
             storageBucket: "vetd-4a601.firebasestorage.app",
             messagingSenderId: "897472183799",
-            appId: "1:897472183799:web:5db41134c234baf09d82f2",
-            measurementId: "G-Q9SNSCSW85"
+            appId: "1:897472183799:web:5db41134c234baf09d82f2"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -291,11 +546,22 @@
         const auth = getAuth(app);
         
         const logsRef = collection(db, 'clinics', 'my-clinic', 'petLogs');
+        const apptsRef = collection(db, 'clinics', 'my-clinic', 'appointments');
 
-        let petLogs = [];
-        let logIdToDelete = null;
-        let updateIndexToDelete = null;
-        let activeCharts = []; // เก็บ instance ของกราฟเพื่อลบทิ้งก่อนวาดใหม่
+        // Global State
+        window.allClinicLogs = [];
+        window.allAppointments = [];
+        window.petLogs = [];
+        window.activeCharts = [];
+        window.currentProfilePetId = null;
+        window.currentPetPreventives = [];
+        window.currentCalDate = new Date();
+        window.pendingImages = {};
+        window.pendingEditImages = {};
+        window.removedEditImages = {};
+
+        // Universal Delete State
+        window.deleteTarget = { type: null, id: null, index: null };
 
         const form = document.getElementById('logForm');
         const logsContainer = document.getElementById('logsContainer');
@@ -310,52 +576,724 @@
         monthFilter.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
         const savedApiKey = localStorage.getItem('gemini_api_key');
-        if (savedApiKey) {
-            document.getElementById('geminiApiKey').value = savedApiKey;
-        }
+        if (savedApiKey) document.getElementById('geminiApiKey').value = savedApiKey;
 
+        // Init Data Fetch
         signInAnonymously(auth).then(() => {
-            loadLogsForSelectedMonth();
+            loadAllData();
         }).catch((error) => {
             console.error("Auth Error:", error);
-            alert("ไม่สามารถเชื่อมต่อระบบยืนยันตัวตนได้ กรุณาตรวจสอบการตั้งค่า Firebase Authentication");
+            showAlert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้", "error");
         });
 
-        async function loadLogsForSelectedMonth() {
+        async function loadAllData() {
             loadingState.classList.remove('hidden');
             emptyState.classList.add('hidden');
             logsContainer.innerHTML = '';
 
-            const selectedMonth = monthFilter.value;
-            if (!selectedMonth) return;
-
             try {
-                const snapshot = await getDocs(query(logsRef));
-                const allLogs = [];
-                snapshot.forEach((doc) => {
-                    allLogs.push({ id: doc.id, ...doc.data() });
-                });
+                const [logsSnap, apptsSnap] = await Promise.all([
+                    getDocs(query(logsRef)),
+                    getDocs(query(apptsRef))
+                ]);
 
-                const filteredByMonth = allLogs.filter(log => log.date.startsWith(selectedMonth));
+                window.allClinicLogs = [];
+                logsSnap.forEach(doc => window.allClinicLogs.push({ id: doc.id, ...doc.data() }));
                 
-                filteredByMonth.sort((a, b) => {
-                    if (a.date !== b.date) {
-                        return new Date(b.date) - new Date(a.date);
-                    }
-                    return new Date(b.createdAt) - new Date(a.createdAt);
-                });
+                window.allAppointments = [];
+                apptsSnap.forEach(doc => window.allAppointments.push({ id: doc.id, ...doc.data() }));
 
-                petLogs = filteredByMonth;
-                loadingState.classList.add('hidden');
+                const selectedMonth = monthFilter.value;
+                if (selectedMonth) {
+                    window.petLogs = window.allClinicLogs.filter(log => log.date.startsWith(selectedMonth));
+                    window.petLogs.sort((a, b) => {
+                        if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    });
+                }
+
                 window.renderLogs();
+                window.renderApptDashboardList();
+                window.renderCalendar();
+                loadingState.classList.add('hidden');
             } catch (error) {
                 console.error("Error fetching data:", error);
                 loadingState.classList.add('hidden');
-                alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
+                showAlert("เกิดข้อผิดพลาดในการดึงข้อมูล", "error");
             }
         }
 
-        monthFilter.addEventListener('change', () => loadLogsForSelectedMonth());
+        // ================= HELPER FUNCTIONS =================
+        window.compressImage = function(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; 
+                        const MAX_HEIGHT = 800;
+                        let width = img.width; 
+                        let height = img.height;
+                        
+                        if (width > height) { 
+                            if (width > MAX_WIDTH) { height = Math.round(height * MAX_WIDTH / width); width = MAX_WIDTH; } 
+                        } else { 
+                            if (height > MAX_HEIGHT) { width = Math.round(width * MAX_HEIGHT / height); height = MAX_HEIGHT; } 
+                        }
+                        
+                        canvas.width = width; 
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.onerror = error => reject(error);
+                };
+                reader.onerror = error => reject(error);
+            });
+        };
+
+        window.handleImageSelect = function(event, id) {
+            const file = event.target.files[0];
+            if (file) {
+                window.pendingImages[id] = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById(`preview-image-${id}`).src = e.target.result;
+                    document.getElementById(`preview-container-${id}`).classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        window.removePreview = function(id) {
+            delete window.pendingImages[id];
+            const previewContainer = document.getElementById(`preview-container-${id}`);
+            if(previewContainer) previewContainer.classList.add('hidden');
+            
+            const fileInput = document.getElementById(`file-upload-${id}`); 
+            if(fileInput) fileInput.value = '';
+            
+            const labInput = document.getElementById(`lab-upload-${id}`); 
+            if(labInput) labInput.value = '';
+            
+            const aiContextInput = document.getElementById(`ai-context-${id}`); 
+            if(aiContextInput) aiContextInput.value = '';
+        };
+
+        window.handleEditImageSelect = function(event, id, index) {
+            const file = event.target.files[0];
+            if (file) {
+                window.pendingEditImages[`${id}-${index}`] = file;
+                window.removedEditImages[`${id}-${index}`] = false;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById(`edit-preview-image-${id}-${index}`).src = e.target.result;
+                    document.getElementById(`edit-preview-container-${id}-${index}`).classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        window.removeEditPreview = function(id, index) {
+            delete window.pendingEditImages[`${id}-${index}`];
+            window.removedEditImages[`${id}-${index}`] = true;
+            const previewContainer = document.getElementById(`edit-preview-container-${id}-${index}`);
+            if(previewContainer) previewContainer.classList.add('hidden');
+            const fileUpload = document.getElementById(`edit-file-upload-${id}-${index}`);
+            if(fileUpload) fileUpload.value = '';
+        };
+
+        window.handleLabAnalysis = async function(event, id) {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                window.openSettings(); 
+                return;
+            }
+
+            const file = event.target.files[0];
+            if (!file) return;
+
+            window.handleImageSelect(event, id);
+
+            const aiContextInput = document.getElementById(`ai-context-${id}`);
+            const aiContextText = aiContextInput ? aiContextInput.value.trim() : "";
+
+            const labBox = document.getElementById(`new-lab-${id}`);
+            const originalText = labBox.value;
+            
+            const aiBtnText = document.getElementById(`ai-btn-text-${id}`);
+            const aiLabel = document.getElementById(`ai-label-${id}`);
+            
+            if(aiBtnText) aiBtnText.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-base"></i> กำลังอ่าน...';
+            if(aiLabel) aiLabel.classList.add('opacity-50', 'pointer-events-none');
+            
+            labBox.value = "✨ AI กำลังวิเคราะห์ผลแล็บจากรูปภาพและอาการ... กรุณารอสักครู่...";
+            labBox.disabled = true;
+            labBox.style.height = 'auto';
+            labBox.style.height = labBox.scrollHeight + 'px';
+
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            try {
+                const base64Data = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+                
+                const genAI = new GoogleGenerativeAI(apiKey);
+                let contextString = aiContextText ? `\n\nอาการเบื้องต้นของสัตว์ป่วย (Clinical Context): ${aiContextText}` : "";
+                
+                const prompt = `คุณคือผู้ช่วยสัตวแพทย์ผู้เชี่ยวชาญ นี่คือภาพใบรายงานผลการตรวจเลือด/ผลแล็บของสัตว์เลี้ยง${contextString}\nโปรดวิเคราะห์รูปภาพและข้อมูลอาการ(ถ้ามี) แล้วตอบกลับมาในรูปแบบที่กำหนดไว้อย่างเคร่งครัดดังนี้:\n**Diagnosis:**\n(สรุปความผิดปกติหลักเป็น Medical Term เป็น Bullet points เช่น - Mild Anemia, - Severe Leukocytosis)\n**Note:**\n(อธิบายกลไก สาเหตุ หรือ Differential Diagnosis ที่เป็นไปได้แบบสั้นๆ ให้สัตวแพทย์อ่าน โดยเชื่อมโยงกับอาการเบื้องต้นถ้ามี)\n**CE (Client Education):**\n(สร้างประโยคสำหรับพูดคุยอธิบายกับเจ้าของสัตว์ ด้วยภาษาที่เข้าใจง่าย เป็นมิตร ไม่ใช้ศัพท์แพทย์ซับซ้อน พร้อมคำแนะนำเบื้องต้น)\nหากในรูปไม่ใช่ผลแล็บ ให้ตอบเพียงแค่ 'ไม่พบข้อมูลผลแล็บในรูปภาพ'`;
+
+                const imagePart = { inlineData: { data: base64Data, mimeType: file.type } };
+
+                let result = null;
+                let lastError = null;
+                const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
+
+                for (const modelName of modelsToTry) {
+                    try {
+                        const model = genAI.getGenerativeModel({ model: modelName });
+                        result = await model.generateContent([prompt, imagePart]);
+                        if (result) break; 
+                    } catch (err) {
+                        lastError = err; 
+                    }
+                }
+
+                if (!result) throw lastError; 
+
+                const aiText = result.response.text();
+                labBox.value = (originalText ? originalText + "\n\n" : "") + aiText;
+                
+            } catch (error) {
+                console.error("AI Error:", error);
+                labBox.value = originalText; 
+                let errorMsg = "เกิดข้อผิดพลาดในการวิเคราะห์ AI:\n";
+                if (error && error.message) {
+                    if (error.message.includes("API key not valid")) errorMsg += "API Key ไม่ถูกต้อง";
+                    else errorMsg += error.message;
+                } else {
+                    errorMsg += "ข้อผิดพลาดที่ไม่ทราบสาเหตุ";
+                }
+                alert(errorMsg);
+            } finally {
+                labBox.disabled = false;
+                labBox.style.height = 'auto';
+                labBox.style.height = labBox.scrollHeight + 'px';
+                if(aiBtnText) aiBtnText.innerHTML = '<i class="ph-fill ph-magic-wand text-base"></i> วิเคราะห์ผล';
+                if(aiLabel) aiLabel.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        };
+
+        function createLabInputsHTML(prefix, id, values = {}) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const labDateVal = values.labDate || todayStr;
+            return `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-2 p-3 bg-gray-100/70 border border-gray-200 rounded-xl">
+                    <div class="col-span-full flex justify-between items-center mb-1 border-b border-gray-200/50 pb-2">
+                        <span class="text-[11px] font-bold text-gray-600 flex items-center gap-1.5"><i class="ph-fill ph-calendar-blank text-gray-400"></i> วันที่ตรวจเลือด:</span>
+                        <input type="date" id="${prefix}-labDate-${id}" value="${labDateVal}" class="text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400 bg-white">
+                    </div>
+                    <div class="col-span-full text-[11px] font-bold text-red-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🔴 RBC Panel</div>
+                    <input type="number" id="${prefix}-hct-${id}" placeholder="Hct (%)" value="${values.hct || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
+                    <input type="number" id="${prefix}-mcv-${id}" placeholder="MCV (fL)" value="${values.mcv || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
+                    <input type="number" id="${prefix}-mchc-${id}" placeholder="MCHC (g/dL)" value="${values.mchc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
+                    <div class="hidden md:block"></div>
+                    <div class="col-span-full text-[11px] font-bold text-blue-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🔵 WBC & 🟢 PLT Panel</div>
+                    <input type="number" id="${prefix}-wbc-${id}" placeholder="WBC (x10³)" value="${values.wbc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400">
+                    <input type="number" id="${prefix}-plt-${id}" placeholder="PLT (x10³)" value="${values.plt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-teal-400">
+                    <input type="number" id="${prefix}-neu_count-${id}" placeholder="Neu (count)" value="${values.neu_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400">
+                    <input type="number" id="${prefix}-lym_count-${id}" placeholder="Lym (count)" value="${values.lym_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400">
+                    <input type="number" id="${prefix}-mono_count-${id}" placeholder="Mono (count)" value="${values.mono_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400">
+                    <input type="number" id="${prefix}-eos_count-${id}" placeholder="Eos (count)" value="${values.eos_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400">
+                    <input type="number" id="${prefix}-baso_count-${id}" placeholder="Baso (count)" value="${values.baso_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400">
+                    <div class="hidden md:block"></div>
+                    <div class="col-span-full text-[11px] font-bold text-green-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟢 Liver & 🟡 Kidney Panel</div>
+                    <input type="number" id="${prefix}-bun-${id}" placeholder="BUN" value="${values.bun || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-amber-400">
+                    <input type="number" id="${prefix}-creat-${id}" placeholder="Creat" value="${values.creat || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-amber-400">
+                    <input type="number" id="${prefix}-alt-${id}" placeholder="ALT" value="${values.alt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                    <input type="number" id="${prefix}-ast-${id}" placeholder="AST" value="${values.ast || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                    <input type="number" id="${prefix}-alp-${id}" placeholder="ALP" value="${values.alp || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
+                </div>
+            `;
+        }
+
+        const getLabNum = (prefix, field, id) => {
+            const el = document.getElementById(`${prefix}-${field}-${id}`);
+            if (!el || el.value === '') return null;
+            return parseFloat(el.value);
+        };
+
+        window.toggleEditUpdate = function(id, index) {
+            document.getElementById(`update-display-${id}-${index}`).classList.add('hidden');
+            document.getElementById(`update-edit-${id}-${index}`).classList.remove('hidden');
+            
+            const fields = ['textarea', 'pe', 'ddx', 'dx', 'treatment', 'lab', 'ce'];
+            fields.forEach(field => {
+                const el = document.getElementById(`update-${field}-${id}-${index}`);
+                if(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+            });
+        };
+
+        window.cancelEditUpdate = function(id, index) {
+            document.getElementById(`update-display-${id}-${index}`).classList.remove('hidden');
+            document.getElementById(`update-edit-${id}-${index}`).classList.add('hidden');
+            delete window.pendingEditImages[`${id}-${index}`];
+            delete window.removedEditImages[`${id}-${index}`];
+        };
+
+        // ================= APPOINTMENTS DASHBOARD SYSTEM (NEW) =================
+        const apptDashboardModal = document.getElementById('apptDashboardModal');
+        const apptDashboardContent = document.getElementById('apptDashboardContent');
+
+        window.openApptDashboard = function() {
+            window.renderApptDashboardList();
+            window.renderCalendar();
+            
+            apptDashboardModal.classList.remove('hidden');
+            apptDashboardModal.classList.add('flex');
+            setTimeout(() => {
+                apptDashboardContent.classList.remove('modal-exit-active', 'modal-enter');
+                apptDashboardContent.classList.add('modal-enter-active');
+            }, 10);
+        };
+
+        window.closeApptDashboard = function() {
+            apptDashboardContent.classList.remove('modal-enter-active');
+            apptDashboardContent.classList.add('modal-exit-active');
+            setTimeout(() => {
+                apptDashboardModal.classList.remove('flex');
+                apptDashboardModal.classList.add('hidden');
+            }, 200);
+        };
+
+        window.switchApptDashboardView = function(view) {
+            const listBtn = document.getElementById('apptTabList');
+            const calBtn = document.getElementById('apptTabCal');
+            const listView = document.getElementById('apptDashboardListView');
+            const calView = document.getElementById('apptDashboardCalView');
+
+            if (view === 'list') {
+                listView.classList.remove('hidden'); calView.classList.add('hidden');
+                listBtn.className = "px-3 sm:px-4 py-1.5 rounded-lg bg-white shadow-sm text-gray-800 transition";
+                calBtn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-gray-500 hover:text-gray-700 transition";
+            } else {
+                calView.classList.remove('hidden'); listView.classList.add('hidden');
+                calBtn.className = "px-3 sm:px-4 py-1.5 rounded-lg bg-white shadow-sm text-gray-800 transition";
+                listBtn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-gray-500 hover:text-gray-700 transition";
+                window.renderCalendar();
+            }
+        };
+
+        window.renderApptDashboardList = function() {
+            const container = document.getElementById('apptDashboardListContainer');
+            if (window.allAppointments.length === 0) {
+                container.innerHTML = '<div class="p-10 text-center text-gray-400 font-bold">ยังไม่มีรายการนัดหมาย</div>';
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const sorted = [...window.allAppointments].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            const html = sorted.map(appt => {
+                const apptDate = new Date(appt.date);
+                apptDate.setHours(0,0,0,0);
+                const diffDays = Math.ceil((apptDate - today) / (1000 * 60 * 60 * 24));
+
+                let dateColor = 'text-gray-800'; let badgeHtml = '';
+                if (diffDays < 0) {
+                    dateColor = 'text-red-500';
+                    badgeHtml = `<span class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[10px] font-bold ml-2">เลยกำหนด ${Math.abs(diffDays)} วัน</span>`;
+                } else if (diffDays === 0) {
+                    dateColor = 'text-orange-500';
+                    badgeHtml = `<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold ml-2">วันนี้</span>`;
+                } else if (diffDays <= 14) {
+                    dateColor = 'text-orange-600';
+                    badgeHtml = `<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold ml-2">อีก ${diffDays} วัน</span>`;
+                }
+
+                const displayDate = apptDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                let icon = 'ph-stethoscope text-purple-500';
+                if(appt.type.includes('วัคซีน') || appt.type.includes('เห็บหมัด')) icon = 'ph-syringe text-teal-500';
+                else if(appt.type.includes('ผ่าตัด')) icon = 'ph-bandaids text-red-500';
+
+                return `
+                    <div class="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 px-6 py-4 items-start md:items-center hover:bg-blue-50/30 transition group border-b border-gray-50 last:border-0">
+                        <div class="md:col-span-3 font-bold ${dateColor} flex items-center w-full md:w-auto">
+                            ${displayDate} ${badgeHtml}
+                        </div>
+                        <div class="md:col-span-3 flex flex-col w-full md:w-auto mt-1 md:mt-0">
+                            <span class="font-bold text-gray-800 text-sm">${appt.petName}</span>
+                            <span class="text-[10px] font-bold text-gray-400">ID: ${appt.petId}</span>
+                        </div>
+                        <div class="md:col-span-3 flex items-center gap-2 font-bold text-sm text-gray-700 w-full md:w-auto mt-1 md:mt-0">
+                            <i class="ph-fill ${icon} text-lg shrink-0"></i> <span class="truncate">${appt.type}</span>
+                        </div>
+                        <div class="md:col-span-2 font-bold text-blue-600 text-sm flex items-center gap-1.5 w-full md:w-auto mt-1 md:mt-0">
+                            <i class="ph-fill ph-phone text-gray-400"></i> ${appt.ownerPhone || '-'}
+                        </div>
+                        <div class="md:col-span-1 flex items-center justify-end md:justify-center gap-2 w-full md:w-auto mt-3 md:mt-0">
+                            <button onclick="window.closeApptDashboard(); window.openPatientProfile('${appt.petId}')" class="px-3 py-1.5 bg-blue-50 text-blue-600 font-bold text-[11px] rounded-lg border border-blue-200 hover:bg-blue-100 transition shadow-sm whitespace-nowrap">
+                                เปิดแฟ้มประวัติ
+                            </button>
+                            <button onclick='window.openAppointmentModal("${appt.petId}","${appt.petName}","${appt.ownerPhone}", true, ${JSON.stringify(appt).replace(/'/g, "\\'")})' class="p-1.5 text-gray-400 hover:text-blue-500 bg-white border border-gray-200 rounded-lg transition shadow-sm"><i class="ph-bold ph-pencil-simple text-sm"></i></button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html.join('');
+        };
+
+        window.changeCalendarMonth = function(offset) {
+            window.currentCalDate.setMonth(window.currentCalDate.getMonth() + offset);
+            window.renderCalendar();
+        };
+
+        window.renderCalendar = function() {
+            const grid = document.getElementById('calendarGrid');
+            const title = document.getElementById('calendarMonthYear');
+            if(!grid) return;
+            
+            const year = window.currentCalDate.getFullYear();
+            const month = window.currentCalDate.getMonth();
+            const thaiMonths = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+            title.innerText = `${thaiMonths[month]} ${year}`;
+
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+            const todayStr = new Date().toLocaleDateString('en-CA'); 
+
+            let html = '';
+            for(let i = firstDayIndex; i > 0; i--) {
+                html += `<div class="p-2 sm:p-3 min-h-[80px] bg-gray-50/50 rounded-xl border border-gray-100 text-gray-400 opacity-50 flex flex-col pointer-events-none"><span class="text-sm font-bold">${daysInPrevMonth - i + 1}</span></div>`;
+            }
+
+            for(let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const isToday = dateStr === todayStr;
+                const dayAppts = window.allAppointments.filter(a => a.date === dateStr);
+                const hasAppts = dayAppts.length > 0;
+                
+                let eventsHtml = '';
+                if(hasAppts) {
+                    eventsHtml = `<div class="mt-auto pt-2 flex flex-col gap-1 w-full">`;
+                    dayAppts.slice(0, 2).forEach(a => {
+                        let dotColor = 'bg-blue-500';
+                        if(a.type.includes('วัคซีน') || a.type.includes('เห็บหมัด')) dotColor = 'bg-teal-500';
+                        else if(a.type.includes('ผ่าตัด')) dotColor = 'bg-red-500';
+                        
+                        eventsHtml += `<div class="text-[10px] sm:text-xs truncate font-bold text-gray-700 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full ${dotColor} shrink-0"></span>${a.petName}</div>`;
+                    });
+                    if (dayAppts.length > 2) {
+                        eventsHtml += `<div class="text-[10px] font-bold text-gray-500 text-center bg-gray-100 rounded py-0.5">+ อีก ${dayAppts.length - 2} นัด</div>`;
+                    }
+                    eventsHtml += `</div>`;
+                }
+
+                const todayClasses = isToday ? "bg-blue-50 border-blue-200 shadow-sm" : "bg-white border-gray-200 hover:border-blue-300 hover:shadow-md";
+                html += `
+                    <div onclick="window.showDayAppointments('${dateStr}')" class="p-1 sm:p-2.5 min-h-[90px] sm:min-h-[110px] rounded-xl border transition cursor-pointer flex flex-col ${todayClasses}">
+                        <div class="flex justify-between items-start w-full">
+                            <span class="text-xs sm:text-sm font-bold w-6 h-6 flex items-center justify-center ${isToday ? 'bg-blue-500 text-white rounded-full' : 'text-gray-700'}">${i}</span>
+                            ${hasAppts ? `<span class="hidden sm:flex text-[9px] font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded-full">${dayAppts.length} คิว</span>` : ''}
+                        </div>
+                        ${eventsHtml}
+                    </div>
+                `;
+            }
+
+            const totalCells = firstDayIndex + daysInMonth;
+            const nextDaysFill = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            for(let i = 1; i <= nextDaysFill; i++) {
+                html += `<div class="p-2 sm:p-3 min-h-[80px] bg-gray-50/50 rounded-xl border border-gray-100 text-gray-400 opacity-50 flex flex-col pointer-events-none"><span class="text-sm font-bold">${i}</span></div>`;
+            }
+            grid.innerHTML = html;
+        };
+
+
+        // ================= APPOINTMENT MODALS (CREATE/EDIT/DAY VIEW) =================
+        const dayModal = document.getElementById('dayAppointmentsModal');
+        const dayModalContent = document.getElementById('dayAppointmentsModalContent');
+
+        window.showDayAppointments = function(dateStr) {
+            const displayDateObj = new Date(dateStr);
+            const displayStr = displayDateObj.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            
+            const dateDisplayTitle = document.getElementById('dayApptDateDisplay');
+            dateDisplayTitle.innerText = displayStr;
+            dateDisplayTitle.setAttribute('data-raw-date', dateStr);
+
+            const dayAppts = window.allAppointments.filter(a => a.date === dateStr).sort((a,b) => (a.time||'23:59').localeCompare(b.time||'23:59'));
+            const listContainer = document.getElementById('dayApptListContainer');
+            
+            if (dayAppts.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-10 opacity-60">
+                        <i class="ph-fill ph-calendar-blank text-4xl mb-3 text-gray-400"></i>
+                        <p class="text-gray-500 font-bold">ไม่มีนัดหมายในวันนี้</p>
+                    </div>`;
+            } else {
+                listContainer.innerHTML = dayAppts.map(appt => {
+                    let icon = 'ph-stethoscope'; let iconColor = 'text-purple-500'; let badgeBg = 'bg-purple-50 text-purple-700 border border-purple-200';
+                    if(appt.type.includes('วัคซีน') || appt.type.includes('เห็บหมัด')) { icon = 'ph-syringe'; iconColor = 'text-teal-500'; badgeBg = 'bg-teal-50 text-teal-700 border border-teal-200'; }
+                    else if(appt.type.includes('ผ่าตัด')) { icon = 'ph-bandaids'; iconColor = 'text-red-500'; badgeBg = 'bg-red-50 text-red-700 border border-red-200'; }
+
+                    const timeStr = appt.time ? appt.time + ' น.' : 'ไม่ระบุเวลา';
+
+                    return `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-3 flex gap-4 relative group">
+                        <div class="shrink-0 w-16 text-center border-r border-gray-100 pr-4 flex flex-col items-center justify-center">
+                            <span class="text-xs font-bold text-gray-400 mb-1">เวลา</span>
+                            <span class="text-sm font-bold text-blue-600">${timeStr.replace(' น.','')}</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-bold text-gray-800 text-base">${appt.petName} <span class="text-xs text-gray-400 font-medium">(ID: ${appt.petId})</span></h4>
+                            </div>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold mb-2 ${badgeBg}"><i class="ph-fill ${icon}"></i> ${appt.type}</span>
+                            ${appt.ownerPhone ? `<p class="text-xs font-bold text-gray-500 mb-1"><i class="ph-fill ph-phone"></i> ${appt.ownerPhone}</p>` : ''}
+                            ${appt.note ? `<div class="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded-lg font-medium border border-yellow-100">${appt.note}</div>` : ''}
+                        </div>
+                        <div class="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <button onclick='window.openAppointmentModal("${appt.petId}","${appt.petName}","${appt.ownerPhone}", true, ${JSON.stringify(appt).replace(/'/g, "\\'")})' class="p-2 bg-gray-50 rounded hover:text-blue-500 border border-gray-200 transition"><i class="ph-bold ph-pencil-simple text-sm"></i></button>
+                            <button onclick="window.openDeleteModal('appointment', '${appt.id}')" class="p-2 bg-gray-50 rounded hover:text-red-500 border border-gray-200 transition"><i class="ph-bold ph-trash text-sm"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            dayModal.classList.remove('hidden');
+            dayModal.classList.add('flex');
+            setTimeout(() => {
+                dayModalContent.classList.remove('modal-exit-active', 'modal-enter');
+                dayModalContent.classList.add('modal-enter-active');
+            }, 10);
+        };
+
+        window.closeDayApptModal = function() {
+            dayModalContent.classList.remove('modal-enter-active');
+            dayModalContent.classList.add('modal-exit-active');
+            setTimeout(() => {
+                dayModal.classList.remove('flex');
+                dayModal.classList.add('hidden');
+            }, 200);
+        };
+
+        const apptModal = document.getElementById('appointmentModal');
+        const apptModalContent = document.getElementById('appointmentModalContent');
+
+        window.openAppointmentModal = function(petId = '', petName = '', phone = '', isEdit = false, apptData = null) {
+            document.getElementById('apptId').value = isEdit ? apptData.id : '';
+            document.getElementById('apptPetId').value = isEdit ? apptData.petId : petId;
+            
+            const displayName = isEdit ? apptData.petName : petName;
+            const displayPhone = isEdit ? (apptData.ownerPhone||'-') : (phone||'-');
+            
+            document.getElementById('apptDisplayPetName').innerText = `${displayName} (ID: ${isEdit ? apptData.petId : petId})`;
+            document.getElementById('apptDisplayPhone').innerHTML = `<i class="ph-fill ph-phone text-blue-500"></i> ${displayPhone}`;
+            
+            document.getElementById('appointmentForm').dataset.petName = displayName;
+            document.getElementById('appointmentForm').dataset.phone = displayPhone;
+            
+            document.getElementById('apptDate').value = isEdit ? apptData.date : '';
+            document.getElementById('apptTime').value = isEdit ? (apptData.time || '') : '';
+            document.getElementById('apptType').value = isEdit ? apptData.type : '';
+            document.getElementById('apptNote').value = isEdit ? (apptData.note || '') : '';
+            
+            document.getElementById('apptModalTitle').innerHTML = isEdit 
+                ? '<i class="ph-fill ph-pencil-simple text-blue-600 text-xl"></i> แก้ไขนัดหมาย'
+                : '<i class="ph-fill ph-calendar-plus text-blue-600 text-xl"></i> สร้างนัดหมายใหม่';
+            document.getElementById('saveApptBtn').innerHTML = isEdit ? 'บันทึกแก้ไข' : '<i class="ph-bold ph-calendar-check"></i> บันทึกนัด';
+
+            apptModal.classList.remove('hidden');
+            apptModal.classList.add('flex');
+            setTimeout(() => {
+                apptModalContent.classList.remove('modal-exit-active', 'modal-enter');
+                apptModalContent.classList.add('modal-enter-active');
+            }, 10);
+        };
+
+        window.closeAppointmentModal = function() {
+            apptModalContent.classList.remove('modal-enter-active');
+            apptModalContent.classList.add('modal-exit-active');
+            setTimeout(() => {
+                apptModal.classList.remove('flex');
+                apptModal.classList.add('hidden');
+                document.getElementById('appointmentForm').reset();
+            }, 200);
+        };
+
+        document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('saveApptBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> บันทึก...';
+            btn.disabled = true;
+
+            const formElem = document.getElementById('appointmentForm');
+            const apptId = document.getElementById('apptId').value;
+            
+            const apptData = {
+                petId: document.getElementById('apptPetId').value,
+                petName: formElem.dataset.petName || 'Unknown',
+                ownerPhone: formElem.dataset.phone || '',
+                date: document.getElementById('apptDate').value,
+                time: document.getElementById('apptTime').value,
+                type: document.getElementById('apptType').value,
+                note: document.getElementById('apptNote').value,
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                if (apptId) {
+                    await updateDoc(doc(db, 'clinics', 'my-clinic', 'appointments', apptId), apptData);
+                    const index = window.allAppointments.findIndex(a => a.id === apptId);
+                    if(index > -1) window.allAppointments[index] = { id: apptId, ...apptData };
+                    showAlert("แก้ไขนัดหมายเรียบร้อย", "success");
+                } else {
+                    const newRef = doc(apptsRef);
+                    await setDoc(newRef, apptData);
+                    window.allAppointments.push({ id: newRef.id, ...apptData });
+                    showAlert("สร้างนัดหมายสำเร็จ", "success");
+                }
+                
+                window.closeAppointmentModal();
+                window.renderApptDashboardList();
+                window.renderCalendar();
+                window.renderLogs(); 
+                
+                if(!document.getElementById('dayAppointmentsModal').classList.contains('hidden')){
+                    window.showDayAppointments(apptData.date);
+                }
+            } catch (err) {
+                console.error("Appt Error:", err);
+                showAlert("บันทึกนัดหมายไม่สำเร็จ", "error");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+
+        // ================= UNIVERSAL DELETE LOGIC =================
+        const dModal = document.getElementById('deleteModal');
+        const dModalContent = document.getElementById('deleteModalContent');
+        const dTitle = document.getElementById('deleteModalTitle');
+        const dText = document.getElementById('deleteModalText');
+
+        window.openDeleteModal = function(type, id, index = null) {
+            window.deleteTarget = { type, id, index };
+            
+            if (type === 'log') {
+                dTitle.innerText = "ยืนยันการลบประวัติ";
+                dText.innerHTML = "ลบประวัติการรักษาทั้งหมดของเคสนี้?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้";
+            } else if (type === 'update') {
+                dTitle.innerText = "ยืนยันการลบอัปเดต";
+                dText.innerHTML = "ลบข้อมูลการรักษาย่อยครั้งนี้?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้";
+            } else if (type === 'appointment') {
+                dTitle.innerText = "ยกเลิกนัดหมาย";
+                dText.innerHTML = "ยืนยันการยกเลิกและลบนัดหมายนี้?<br>รายการนี้จะหายไปจากตารางทันที";
+            } else if (type === 'preventive') {
+                dTitle.innerText = "ลบประวัติวัคซีน";
+                dText.innerHTML = "ต้องการลบประวัติวัคซีน/ยาป้องกันรายการนี้?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้";
+            }
+
+            dModal.classList.remove('hidden');
+            dModal.classList.add('flex');
+            setTimeout(() => {
+                dModalContent.classList.remove('modal-exit-active', 'modal-enter');
+                dModalContent.classList.add('modal-enter-active');
+            }, 10);
+        };
+
+        window.closeDeleteModal = function() {
+            window.deleteTarget = { type: null, id: null, index: null };
+            dModalContent.classList.remove('modal-enter-active');
+            dModalContent.classList.add('modal-exit-active');
+            setTimeout(() => {
+                dModal.classList.remove('flex');
+                dModal.classList.add('hidden');
+            }, 200);
+        };
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            const { type, id, index } = window.deleteTarget;
+            if (!type || !id) return;
+            
+            const btn = document.getElementById('confirmDeleteBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> ลบ...';
+            btn.disabled = true;
+
+            try {
+                if (type === 'update') {
+                    const targetLog = window.petLogs.find(l => l.id === id);
+                    const currentUpdates = [...targetLog.updates];
+                    currentUpdates.splice(index, 1);
+                    await updateDoc(doc(db, 'clinics', 'my-clinic', 'petLogs', id), { updates: currentUpdates });
+                    targetLog.updates = currentUpdates;
+                    showAlert("ลบอัปเดตเรียบร้อยแล้ว", "success");
+                    window.renderLogs();
+                } 
+                else if (type === 'log') {
+                    await deleteDoc(doc(db, 'clinics', 'my-clinic', 'petLogs', id));
+                    window.petLogs = window.petLogs.filter(l => l.id !== id);
+                    window.allClinicLogs = window.allClinicLogs.filter(l => l.id !== id);
+                    showAlert("ลบประวัติเรียบร้อยแล้ว", "success");
+                    window.renderLogs();
+                } 
+                else if (type === 'appointment') {
+                    await deleteDoc(doc(db, 'clinics', 'my-clinic', 'appointments', id));
+                    window.allAppointments = window.allAppointments.filter(a => a.id !== id);
+                    showAlert("ยกเลิกนัดหมายเรียบร้อยแล้ว", "success");
+                    window.renderApptDashboardList();
+                    window.renderCalendar();
+                    window.renderLogs(); 
+                    if(!document.getElementById('dayAppointmentsModal').classList.contains('hidden')){
+                        const dStr = document.getElementById('dayApptDateDisplay').getAttribute('data-raw-date');
+                        window.showDayAppointments(dStr);
+                    }
+                } 
+                else if (type === 'preventive') {
+                    window.currentPetPreventives = window.currentPetPreventives.filter(p => p.id !== id);
+                    const safePid = window.currentProfilePetId.replace(/\//g, '_');
+                    const petDocRef = doc(db, 'clinics', 'my-clinic', 'pets', safePid);
+                    await setDoc(petDocRef, { preventives: window.currentPetPreventives }, { merge: true });
+                    showAlert("ลบประวัติวัคซีนเรียบร้อย", "success");
+                    window.renderPreventives();
+                }
+                window.closeDeleteModal();
+            } catch (error) {
+                console.error("Delete error:", error);
+                showAlert("ทำรายการไม่สำเร็จ", "error");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        // ================= MAIN LOG RENDER (WITH UPDATED ACTION BUTTONS) =================
+        
+        monthFilter.addEventListener('change', () => {
+            const selectedMonth = monthFilter.value;
+            if (!selectedMonth) return;
+            window.petLogs = window.allClinicLogs.filter(log => log.date.startsWith(selectedMonth));
+            window.petLogs.sort((a, b) => {
+                if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+            window.renderLogs();
+        });
+
         typeFilter.addEventListener('change', () => window.renderLogs());
         searchInput.addEventListener('input', () => window.renderLogs());
 
@@ -365,10 +1303,7 @@
             const today = new Date();
             let years = today.getFullYear() - dob.getFullYear();
             let months = today.getMonth() - dob.getMonth();
-            if (months < 0 || (months === 0 && today.getDate() < dob.getDate())) {
-                years--;
-                months += 12;
-            }
+            if (months < 0 || (months === 0 && today.getDate() < dob.getDate())) { years--; months += 12; }
             if (years === 0 && months === 0) return 'ไม่ถึง 1 เดือน';
             let ageStr = [];
             if (years > 0) ageStr.push(`${years} ปี`);
@@ -376,75 +1311,258 @@
             return ageStr.join(' ');
         }
 
-        // ฟังก์ชันสร้างช่องกรอกค่าแล็บ (อัปเดตให้มีวันที่และช่อง count)
-        function createLabInputsHTML(prefix, id, values = {}) {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const labDateVal = values.labDate || todayStr;
+        window.searchExistingPet = function() {
+            const pidInput = document.getElementById('petId');
+            const pid = pidInput.value.trim();
+            const statusEl = document.getElementById('petSearchStatus');
+            if(!pid) { statusEl.classList.add('hidden'); return; }
+            statusEl.classList.remove('hidden');
+            statusEl.innerText = "กำลังค้นหาประวัติ...";
+            statusEl.className = "text-[10px] font-bold mt-1 block text-blue-500 animate-pulse";
+            setTimeout(() => {
+                const matches = window.allClinicLogs.filter(l => l.petId === pid).sort((a,b) => {
+                    if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                });
+                if(matches.length > 0) {
+                    const latestData = matches[0];
+                    document.getElementById('petName').value = latestData.petName || '';
+                    document.getElementById('species').value = latestData.species || 'สุนัข';
+                    document.getElementById('dob').value = latestData.dob || '';
+                    document.getElementById('ownerPhone').value = latestData.ownerPhone || '';
+                    statusEl.innerText = "✅ พบประวัติเดิม เติมข้อมูลให้แล้ว!";
+                    statusEl.className = "text-[10px] font-bold mt-1 block text-green-600";
+                    pidInput.classList.add('ring-2', 'ring-green-400', 'border-green-400');
+                    setTimeout(() => pidInput.classList.remove('ring-2', 'ring-green-400', 'border-green-400'), 1500);
+                } else {
+                    statusEl.innerText = "✨ ไม่พบประวัติเก่า (สร้างประวัติใหม่)";
+                    statusEl.className = "text-[10px] font-bold mt-1 block text-gray-500";
+                }
+            }, 300);
+        };
 
-            return `
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-2 p-3 bg-gray-100/70 border border-gray-200 rounded-xl">
-                    <div class="col-span-full flex justify-between items-center mb-1 border-b border-gray-200/50 pb-2">
-                        <span class="text-[11px] font-bold text-gray-600 flex items-center gap-1.5"><i class="ph-fill ph-calendar-blank text-gray-400"></i> วันที่ตรวจเลือด:</span>
-                        <input type="date" id="${prefix}-labDate-${id}" value="${labDateVal}" class="text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-blue-400 bg-white">
+        window.switchProfileTab = function(tab) {
+            const tabHistoryBtn = document.getElementById('tab-history');
+            const tabPreventiveBtn = document.getElementById('tab-preventive');
+            const viewHistory = document.getElementById('view-history');
+            const viewPreventive = document.getElementById('view-preventive');
+            if(tab === 'history') {
+                viewHistory.classList.remove('hidden'); viewPreventive.classList.add('hidden');
+                tabHistoryBtn.className = "pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-1.5";
+                tabPreventiveBtn.className = "pb-3 text-sm font-bold text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition flex items-center gap-1.5";
+            } else {
+                viewPreventive.classList.remove('hidden'); viewHistory.classList.add('hidden');
+                tabPreventiveBtn.className = "pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-1.5";
+                tabHistoryBtn.className = "pb-3 text-sm font-bold text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition flex items-center gap-1.5";
+            }
+        };
+
+        window.openPatientProfile = async function(pid) {
+            window.currentProfilePetId = pid;
+            const matches = window.allClinicLogs.filter(l => l.petId === pid).sort((a,b) => {
+                if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+            if(matches.length === 0) return;
+            const petInfo = matches[0];
+            const ageStr = petInfo.dob ? calculateAge(petInfo.dob) : 'ไม่ระบุ';
+            let speciesIcon = 'ph-paw-print'; let speciesColor = 'text-gray-500 bg-gray-100 border-gray-200';
+            if (petInfo.species === 'สุนัข') { speciesIcon = 'ph-dog'; speciesColor = 'text-orange-600 bg-orange-50 border-orange-200'; }
+            else if (petInfo.species === 'แมว') { speciesIcon = 'ph-cat'; speciesColor = 'text-indigo-600 bg-indigo-50 border-indigo-200'; }
+
+            const headerHtml = `
+                <div class="flex items-start sm:items-center gap-4">
+                    <div class="flex-shrink-0 w-16 h-16 rounded-full bg-gray-50 border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                        <i class="ph-fill ${speciesIcon} text-3xl text-gray-400"></i>
                     </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-1">
+                            <h2 class="text-2xl font-bold text-gray-900">${petInfo.petName}</h2>
+                            <span class="px-2 py-0.5 text-[11px] font-bold rounded-md border ${speciesColor} flex items-center gap-1">${petInfo.species}</span>
+                            <span class="text-[11px] font-bold text-gray-400 bg-gray-50 px-2.5 py-0.5 rounded border border-gray-200">ID: <span class="text-gray-800">${petInfo.petId}</span></span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-semibold text-gray-500 mt-2">
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-cake text-pink-400"></i> ${ageStr}</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-phone text-blue-400"></i> ${petInfo.ownerPhone || '-'}</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-stethoscope text-green-500"></i> เข้ารักษา ${matches.length} ครั้ง</span>
+                        </div>
+                    </div>
+                </div>`;
+            document.getElementById('profileHeaderContent').innerHTML = headerHtml;
 
-                    <div class="col-span-full text-[11px] font-bold text-red-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🔴 RBC Panel</div>
-                    <input type="number" id="${prefix}-hct-${id}" placeholder="Hct (%)" value="${values.hct || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
-                    <input type="number" id="${prefix}-mcv-${id}" placeholder="MCV (fL)" value="${values.mcv || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
-                    <input type="number" id="${prefix}-mchc-${id}" placeholder="MCHC (g/dL)" value="${values.mchc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-red-400">
-                    <div class="hidden md:block"></div> <!-- spacer -->
-                    
-                    <div class="col-span-full text-[11px] font-bold text-purple-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟣 WBC & PLT Panel</div>
-                    <input type="number" id="${prefix}-wbc-${id}" placeholder="WBC (x10³)" value="${values.wbc || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
-                    <input type="number" id="${prefix}-plt-${id}" placeholder="PLT (x10³)" value="${values.plt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
-                    <input type="number" id="${prefix}-neu-${id}" placeholder="Neu (%)" value="${values.neu || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
-                    <input type="number" id="${prefix}-neu_count-${id}" placeholder="Neu (count)" value="${values.neu_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
-                    <input type="number" id="${prefix}-lym-${id}" placeholder="Lym (%)" value="${values.lym || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
-                    <input type="number" id="${prefix}-lym_count-${id}" placeholder="Lym (count)" value="${values.lym_count || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-purple-400">
+            let historyHtml = '';
+            matches.forEach((visit) => {
+                const dateObj = new Date(visit.date);
+                const displayDate = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                let badgeHtml = '';
+                if (visit.caseType === 'IPD') {
+                    if (visit.isDischarged) badgeHtml = '<span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold rounded border border-gray-200">กลับบ้านแล้ว</span>';
+                    else badgeHtml = '<span class="px-2 py-0.5 bg-red-50 text-red-500 text-[10px] font-bold rounded border border-red-200">แอดมิท (IPD)</span>';
+                } else { badgeHtml = '<span class="px-2 py-0.5 bg-blue-50 text-blue-500 text-[10px] font-bold rounded border border-blue-200">OPD</span>'; }
 
-                    <div class="col-span-full text-[11px] font-bold text-green-500 mt-1 mb-0.5 border-b border-gray-200/50 pb-1">🟢 Liver & Kidney Panel</div>
-                    <input type="number" id="${prefix}-bun-${id}" placeholder="BUN" value="${values.bun || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
-                    <input type="number" id="${prefix}-creat-${id}" placeholder="Creat" value="${values.creat || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
-                    <input type="number" id="${prefix}-alt-${id}" placeholder="ALT" value="${values.alt || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
-                    <input type="number" id="${prefix}-ast-${id}" placeholder="AST" value="${values.ast || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
-                    <input type="number" id="${prefix}-alp-${id}" placeholder="ALP" value="${values.alp || ''}" class="w-full text-xs font-semibold px-2 py-1.5 border border-gray-300 rounded-lg outline-none focus:border-green-400">
-                </div>
-            `;
-        }
+                let updateSummary = visit.updates && visit.updates.length > 0 
+                    ? `<p class="text-xs font-semibold text-blue-500 mt-2 flex items-center gap-1"><i class="ph-fill ph-chat-circle text-blue-400"></i> อัปเดต ${visit.updates.length} ครั้ง</p>`
+                    : `<p class="text-[11px] text-gray-400 mt-2 italic">ไม่มีข้อมูลการอัปเดตย่อย</p>`;
+
+                historyHtml += `
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-cozy-green transition-colors relative">
+                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-l-xl"></div>
+                        <div class="flex justify-between items-start mb-2 pl-2">
+                            <span class="text-sm font-bold text-gray-800 flex items-center gap-1.5"><i class="ph-fill ph-calendar-blank text-cozy-green"></i> ${displayDate}</span>
+                            ${badgeHtml}
+                        </div>
+                        <div class="pl-2">
+                            <p class="text-[10px] font-bold text-gray-400 mb-1 uppercase">อาการสำคัญ (CC)</p>
+                            <p class="text-sm text-gray-700 font-medium whitespace-pre-wrap leading-relaxed">${visit.symptoms}</p>
+                            ${updateSummary}
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('profileHistoryList').innerHTML = historyHtml;
+            document.getElementById('prev-date').valueAsDate = new Date();
+            window.switchProfileTab('history');
+            
+            const modal = document.getElementById('patientProfileModal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+
+            try {
+                const safePid = window.currentProfilePetId.replace(/\//g, '_'); 
+                const petDocRef = doc(db, 'clinics', 'my-clinic', 'pets', safePid);
+                const petSnap = await getDoc(petDocRef);
+                if (petSnap.exists()) window.currentPetPreventives = petSnap.data().preventives || [];
+                else window.currentPetPreventives = [];
+                window.renderPreventives();
+            } catch(e) { console.error("Error fetching preventives:", e); }
+        };
+
+        window.closePatientProfile = function() {
+            const modal = document.getElementById('patientProfileModal');
+            modal.classList.remove('flex'); modal.classList.add('hidden');
+            window.currentProfilePetId = null;
+        };
+
+        window.addPreventive = async function() {
+            const type = document.getElementById('prev-type').value;
+            const name = document.getElementById('prev-name').value.trim();
+            const date = document.getElementById('prev-date').value;
+            const nextDue = document.getElementById('prev-next').value;
+
+            if(!name || !date) return showAlert('กรุณากรอกยี่ห้อและวันที่ทำ', 'error');
+
+            const btn = document.getElementById('btn-add-prev');
+            btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> บันทึก...';
+
+            const newRecord = {
+                id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+                type, name, date, nextDue,
+                createdAt: new Date().toISOString()
+            };
+            window.currentPetPreventives.push(newRecord);
+
+            try {
+                const safePid = window.currentProfilePetId.replace(/\//g, '_');
+                const petDocRef = doc(db, 'clinics', 'my-clinic', 'pets', safePid);
+                await setDoc(petDocRef, { preventives: window.currentPetPreventives }, { merge: true });
+                document.getElementById('prev-name').value = '';
+                document.getElementById('prev-next').value = '';
+                window.renderPreventives();
+                showAlert('บันทึกวัคซีนเรียบร้อย', 'success');
+            } catch(e) {
+                console.error(e);
+                showAlert('เกิดข้อผิดพลาดในการบันทึกวัคซีน', 'error');
+                window.currentPetPreventives.pop(); 
+            } finally {
+                btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> บันทึกรายการ';
+            }
+        };
+
+        window.renderPreventives = function() {
+            const container = document.getElementById('preventiveTableContainer');
+            if(window.currentPetPreventives.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 bg-gray-50 border border-gray-200 rounded-2xl border-dashed">
+                        <i class="ph ph-syringe text-3xl text-gray-300 mb-2"></i>
+                        <p class="text-sm font-bold text-gray-400">ยังไม่มีประวัติวัคซีนหรือยาป้องกันเห็บหมัด</p>
+                    </div>`;
+                return;
+            }
+
+            const sorted = [...window.currentPetPreventives].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const today = new Date(); today.setHours(0,0,0,0);
+            let html = `
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-gray-100 text-gray-600 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 font-bold">วันที่ทำ</th><th class="px-4 py-3 font-bold">ประเภท</th><th class="px-4 py-3 font-bold">รายการ / ยี่ห้อ</th><th class="px-4 py-3 font-bold">นัดครั้งต่อไป</th><th class="px-4 py-3 font-bold text-center w-10"></th>
+                        </tr>
+                    </thead><tbody class="divide-y divide-gray-100 bg-white">`;
+
+            sorted.forEach(p => {
+                let statusClass = "text-gray-500 font-semibold"; let statusIcon = ""; let nextDueDisplay = '-';
+                if(p.nextDue) {
+                    const nextDate = new Date(p.nextDue); nextDate.setHours(0,0,0,0);
+                    nextDueDisplay = nextDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+                    if(diffDays < 0) { statusClass = "text-red-600 font-bold bg-red-50 px-2 py-1 rounded-md border border-red-100"; statusIcon = '<i class="ph-fill ph-warning-circle text-red-500"></i> '; } 
+                    else if (diffDays <= 14) { statusClass = "text-orange-600 font-bold bg-orange-50 px-2 py-1 rounded-md border border-orange-100"; statusIcon = '<i class="ph-fill ph-clock text-orange-500"></i> '; } 
+                    else { statusClass = "text-gray-700 font-semibold"; }
+                }
+
+                const d = new Date(p.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                let typeBadge = '';
+                if(p.type.includes('วัคซีน')) typeBadge = `<span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-[11px] font-bold border border-blue-200">${p.type}</span>`;
+                else if(p.type.includes('เห็บ')) typeBadge = `<span class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[11px] font-bold border border-teal-200">${p.type}</span>`;
+                else if(p.type.includes('พยาธิ')) typeBadge = `<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded text-[11px] font-bold border border-amber-200">${p.type}</span>`;
+                else typeBadge = `<span class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded text-[11px] font-bold border border-gray-300">${p.type}</span>`;
+
+                html += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3.5 text-gray-600 font-medium">${d}</td>
+                        <td class="px-4 py-3.5">${typeBadge}</td><td class="px-4 py-3.5 font-bold text-gray-800">${p.name}</td>
+                        <td class="px-4 py-3.5"><span class="flex items-center gap-1.5 w-fit ${statusClass}">${statusIcon}${nextDueDisplay}</span></td>
+                        <td class="px-4 py-3.5 text-center">
+                            <button onclick="window.openDeleteModal('preventive', '${p.id}')" class="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full transition border border-transparent hover:border-red-200" title="ลบรายการนี้"><i class="ph-bold ph-trash text-base"></i></button>
+                        </td>
+                    </tr>`;
+            });
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+        };
 
         window.renderLogs = function() {
-            const filterText = searchInput.value.toLowerCase();
-            const filterType = typeFilter.value;
+            const filterText = document.getElementById('searchInput').value.toLowerCase();
+            const filterType = document.getElementById('typeFilter').value;
 
-            const filteredLogs = petLogs.filter(log => {
+            const filteredLogs = window.petLogs.filter(log => {
                 const matchName = log.petName.toLowerCase().includes(filterText);
                 const matchId = log.petId.toLowerCase().includes(filterText);
                 const matchPhone = log.ownerPhone ? log.ownerPhone.includes(filterText) : false;
                 const matchType = filterType === 'ALL' || log.caseType === filterType;
-                
                 return (matchName || matchId || matchPhone) && matchType;
             });
 
             if (filteredLogs.length === 0) {
-                emptyState.classList.remove('hidden');
-                logsContainer.innerHTML = '';
+                document.getElementById('emptyState').classList.remove('hidden');
+                document.getElementById('logsContainer').innerHTML = '';
                 return;
             }
-
-            emptyState.classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
             
             const logsHtmlArray = filteredLogs.map(log => {
                 const dateObj = new Date(log.date);
                 const displayDate = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
                 
-                // ตรวจสอบว่าเคสนี้มีข้อมูลกราฟไหม
-                let hasLabDataInLog = false;
+                const futureAppts = window.allAppointments.filter(a => a.petId === log.petId && new Date(a.date) >= new Date(new Date().setHours(0,0,0,0)));
+                const apptBadgeHtml = futureAppts.length > 0 
+                    ? `<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded flex items-center gap-1 border border-yellow-200"><i class="ph-fill ph-clock"></i> มีนัด ${futureAppts.length} รายการ</span>` 
+                    : '';
 
+                let hasLabDataInLog = false;
                 let updatesHtml = '';
+                
                 if (log.updates && log.updates.length > 0) {
                     const updateItemsArray = log.updates.map((update, index) => {
-                        
-                        // ===== DESIGN UPDATES: Minimal Earth Tone =====
                         let vitalsHtml = '';
                         if (update.weight || update.temp) {
                             let wHtml = update.weight ? '<span class="px-2.5 py-1 text-[11px] font-bold rounded-md bg-stone-50 text-stone-600 border border-stone-200 flex items-center gap-1"><i class="ph-fill ph-scales text-stone-400"></i> ' + update.weight + ' kg</span>' : '';
@@ -455,26 +1573,21 @@
                         let textHtml = update.text ? '<div class="mb-3"><p class="text-gray-400 text-[10px] font-bold mb-1 flex items-center gap-1 uppercase tracking-wide">History (Hx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.text + '</p></div>' : '';
                         
                         const boxBase = "bg-white border border-gray-100 shadow-sm rounded-xl p-3 mb-2 border-l-4";
-                        
                         let peHtml = update.pe ? '<div class="' + boxBase + ' border-l-stone-400"><p class="text-stone-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-stone-400 text-sm"></i> Physical Exam (PE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.pe + '</p></div>' : '';
                         let ddxHtml = update.diffDiag ? '<div class="' + boxBase + ' border-l-amber-400/80"><p class="text-amber-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-list-magnifying-glass text-amber-500/80 text-sm"></i> Diff. Diagnosis</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.diffDiag + '</p></div>' : '';
                         let dxHtml = update.finalDiag ? '<div class="' + boxBase + ' border-l-[#748E63]"><p class="text-[#5B734C] text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-check-circle text-[#748E63] text-sm"></i> Final Diagnosis (Dx)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.finalDiag + '</p></div>' : '';
                         let treatmentHtml = update.treatment ? '<div class="' + boxBase + ' border-l-sky-400/80"><p class="text-sky-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-pill text-sky-500/80 text-sm"></i> การรักษา / ยาที่จ่าย</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.treatment + '</p></div>' : '';
-                        let labHtml = update.labResult ? '<div class="' + boxBase + ' border-l-violet-400/70"><p class="text-violet-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-flask text-violet-400/80 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.labResult + '</p></div>' : '';
+                        let labHtml = update.labResult ? '<div class="' + boxBase + ' border-l-violet-400/70"><p class="text-violet-700/80 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-violet-400/80 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.labResult + '</p></div>' : '';
                         let ceHtml = update.ce ? '<div class="' + boxBase + ' border-l-rose-400/70"><p class="text-rose-700/80 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-rose-400/80 text-sm"></i> Client Education (CE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.ce + '</p></div>' : '';
-                        
                         let imageHtml = update.imageUrl ? '<img src="' + update.imageUrl + '" onclick="window.openImageModal(this.src)" class="mt-2 rounded-xl max-h-48 border border-gray-200 object-cover hover:opacity-90 transition cursor-zoom-in shadow-sm" alt="ภาพอัปเดต">' : '';
 
                         let timestampHtml = update.timestamp || '';
                         let editPreviewClass = update.imageUrl ? "relative w-fit mt-1 px-1" : "hidden relative w-fit mt-1 px-1";
                         let editPreviewSrc = update.imageUrl ? update.imageUrl : "";
                         
-                        // Check if labData exists
                         let labDataBadge = '';
                         if (update.labData && Object.keys(update.labData).some(k => k !== 'labDate' && update.labData[k] !== null && update.labData[k] !== '')) {
                             hasLabDataInLog = true;
-                            
-                            // จัดฟอร์แมตวันที่ตรวจเลือดให้สวยงาม
                             let labDateStr = 'มีค่าเลือด';
                             if(update.labData.labDate) {
                                 const d = new Date(update.labData.labDate);
@@ -499,27 +1612,18 @@
                                     <span class="font-bold text-gray-700 text-xs flex items-center gap-2">
                                         <i class="ph-fill ph-chat-circle text-gray-400"></i> อัปเดต ${index + 1} ${labDataBadge}
                                         <div class="flex items-center gap-1 opacity-0 group-hover/update:opacity-100 transition-opacity">
-                                            <button onclick="window.toggleEditUpdate('${log.id}', ${index})" class="text-gray-400 hover:text-cozy-green bg-gray-50 rounded p-1 border border-gray-200" title="แก้ไข">
-                                                <i class="ph ph-pencil-simple text-sm"></i>
+                                            <button onclick="window.toggleEditUpdate('${log.id}', ${index})" class="text-gray-400 hover:text-blue-500 bg-gray-50 rounded p-1 border border-gray-200" title="แก้ไข">
+                                                <i class="ph-bold ph-pencil-simple text-sm"></i>
                                             </button>
-                                            <button onclick="window.openDeleteModal('${log.id}', true, ${index})" class="text-gray-400 hover:text-red-500 bg-gray-50 rounded p-1 border border-gray-200" title="ลบอัปเดต">
-                                                <i class="ph ph-trash text-sm"></i>
+                                            <button onclick="window.openDeleteModal('update', '${log.id}', ${index})" class="text-gray-400 hover:text-red-500 bg-gray-50 rounded p-1 border border-gray-200" title="ลบอัปเดต">
+                                                <i class="ph-bold ph-trash text-sm"></i>
                                             </button>
                                         </div>
                                     </span>
                                     <span class="text-[10px] font-bold text-gray-400">${timestampHtml}</span>
                                 </div>
-                                
                                 <div id="update-display-${log.id}-${index}">
-                                    ${vitalsHtml}
-                                    ${textHtml}
-                                    ${peHtml}
-                                    ${ddxHtml}
-                                    ${dxHtml}
-                                    ${treatmentHtml}
-                                    ${labHtml}
-                                    ${ceHtml}
-                                    ${imageHtml}
+                                    ${vitalsHtml}${textHtml}${peHtml}${ddxHtml}${dxHtml}${treatmentHtml}${labHtml}${ceHtml}${imageHtml}
                                 </div>
                                 
                                 <div id="update-edit-${log.id}-${index}" class="hidden mt-3 flex flex-col gap-2 bg-white border border-gray-200 p-3 rounded-xl shadow-sm">
@@ -566,7 +1670,6 @@
                                         <textarea id="update-ce-${log.id}-${index}" rows="1" placeholder="Client Education (CE) / คำแนะนำ..." class="w-full text-[13px] font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-rose-400 focus:bg-white" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${updateCe}</textarea>
                                     </div>
 
-                                    <!-- Section กรอกค่าแล็บสำหรับแก้ไข -->
                                     <div class="mt-2">
                                         <button type="button" onclick="document.getElementById('edit-lab-grid-${log.id}-${index}').classList.toggle('hidden')" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition"><i class="ph-bold ph-chart-line-up"></i> แก้ไขตัวเลขค่าเลือด (สำหรับกราฟ)</button>
                                         <div id="edit-lab-grid-${log.id}-${index}" class="hidden">
@@ -596,19 +1699,15 @@
                     updatesHtml = updateItemsArray.join('');
                 }
 
-                let badgeHtml = '';
-                let dischargeSection = '';
-
+                let badgeHtml = ''; let dischargeSection = '';
                 if (log.caseType === 'IPD') {
                     if (log.isDischarged) {
                         badgeHtml = '<span class="px-3 py-1 bg-gray-100 text-gray-500 text-[11px] font-bold rounded-lg border border-gray-200 flex items-center gap-1.5"><i class="ph-fill ph-house-line text-sm"></i> กลับบ้านแล้ว</span>';
-                        let dischargeText = log.dischargeDate || '';
                         dischargeSection = `
                             <div class="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-sm bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                <span class="text-gray-600 font-bold flex items-center gap-1.5 text-xs"><i class="ph-fill ph-check-circle text-cozy-green text-lg"></i> ส่งกลับเมื่อ: <span class="text-gray-900">${dischargeText}</span></span>
+                                <span class="text-gray-600 font-bold flex items-center gap-1.5 text-xs"><i class="ph-fill ph-check-circle text-cozy-green text-lg"></i> ส่งกลับเมื่อ: <span class="text-gray-900">${log.dischargeDate || ''}</span></span>
                                 <button onclick="window.toggleDischarge('${log.id}', false)" class="text-xs font-bold text-red-500 hover:bg-red-50 bg-white px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm">ยกเลิก</button>
-                            </div>
-                        `;
+                            </div>`;
                     } else {
                         badgeHtml = '<span class="px-3 py-1 bg-red-50 text-red-500 text-[11px] font-bold rounded-lg border border-red-200 flex items-center gap-1.5"><i class="ph-fill ph-bed text-sm"></i> IPD</span>';
                         dischargeSection = `
@@ -617,57 +1716,57 @@
                                     <input type="checkbox" id="discharge-${log.id}" onchange="window.toggleDischarge('${log.id}', this.checked)" class="w-5 h-5 text-cozy-green rounded border-gray-300 cursor-pointer">
                                     <span class="text-sm font-bold text-gray-700 group-hover:text-cozy-green transition-colors select-none">จำหน่ายเคส (ส่งตัวกลับบ้าน)</span>
                                 </label>
-                            </div>
-                        `;
+                            </div>`;
                     }
-                } else {
-                    badgeHtml = '<span class="px-3 py-1 bg-blue-50 text-blue-500 text-[11px] font-bold rounded-lg border border-blue-200 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-sm"></i> OPD</span>';
-                }
+                } else { badgeHtml = '<span class="px-3 py-1 bg-blue-50 text-blue-500 text-[11px] font-bold rounded-lg border border-blue-200 flex items-center gap-1.5"><i class="ph-fill ph-stethoscope text-sm"></i> OPD</span>'; }
 
                 let ownerPhoneHtml = log.ownerPhone ? '<span class="flex items-center gap-1 border-l border-gray-300 pl-2"><i class="ph-fill ph-phone text-gray-400 text-sm"></i> ' + log.ownerPhone + '</span>' : '';
                 let emptyStateHtml = (log.updates && log.updates.length === 0) ? '<p class="text-xs font-medium text-gray-400 italic mb-3 ml-1">ยังไม่มีประวัติการอัปเดต...</p>' : '';
-
                 let ageStr = log.dob ? calculateAge(log.dob) : '';
                 let ageHtml = ageStr ? '<span class="flex items-center gap-1 text-gray-500"><i class="ph-fill ph-cake text-pink-400 text-sm"></i> อายุ: ' + ageStr + '</span>' : '';
 
                 let speciesBadge = '';
                 if (log.species) {
-                    let speciesIcon = 'ph-paw-print';
-                    let speciesColor = 'text-gray-500 bg-gray-100 border-gray-200';
+                    let speciesIcon = 'ph-paw-print'; let speciesColor = 'text-gray-500 bg-gray-100 border-gray-200';
                     if (log.species === 'สุนัข') { speciesIcon = 'ph-dog'; speciesColor = 'text-orange-600 bg-orange-50 border-orange-200'; }
                     else if (log.species === 'แมว') { speciesIcon = 'ph-cat'; speciesColor = 'text-indigo-600 bg-indigo-50 border-indigo-200'; }
-                    
                     speciesBadge = '<span class="px-2 py-0.5 text-[10px] font-bold rounded-md border ' + speciesColor + ' flex items-center gap-1"><i class="ph-fill ' + speciesIcon + ' text-sm"></i> ' + log.species + '</span>';
                 }
 
-                // ปุ่มดูกราฟ แสดงเฉพาะตอนที่มีข้อมูลตัวเลขแล็บแล้ว
                 let chartButtonHtml = '';
                 if (hasLabDataInLog) {
                     chartButtonHtml = `
-                        <button onclick="window.openChartModal('${log.id}')" class="absolute top-5 right-24 text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-blue-200 hover:bg-blue-50" title="ดูกราฟแนวโน้มค่าเลือด">
-                            <i class="ph-fill ph-trend-up text-lg"></i>
-                        </button>
-                    `;
+                        <button onclick="window.openChartModal('${log.id}')" class="bg-white text-gray-500 hover:text-blue-600 rounded-lg p-1.5 border border-gray-200 hover:border-blue-200 transition shadow-sm" title="ดูกราฟแนวโน้มค่าเลือด">
+                            <i class="ph-bold ph-trend-up text-sm"></i>
+                        </button>`;
                 }
 
                 return `
                     <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm relative group flex flex-col h-auto">
                         
-                        <button onclick="window.openDeleteModal('${log.id}')" class="absolute top-5 right-5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-red-200 hover:bg-red-50" title="ลบข้อมูลเคสนี้">
-                            <i class="ph ph-trash text-lg"></i>
-                        </button>
-                        
-                        <button onclick="window.toggleEditLog('${log.id}')" class="absolute top-5 right-14 text-gray-300 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full p-1.5 border border-transparent hover:border-gray-200 hover:bg-gray-100" title="แก้ไขข้อมูลสัตว์ป่วย">
-                            <i class="ph ph-pencil-simple text-lg"></i>
-                        </button>
-
-                        ${chartButtonHtml}
+                        <!-- NEW ACTION BUTTONS ROW -->
+                        <div class="absolute top-4 right-4 flex items-center gap-1.5 z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all bg-white/90 backdrop-blur-sm p-1 rounded-xl shadow-sm sm:shadow-none sm:bg-transparent">
+                            ${chartButtonHtml}
+                            <button onclick="window.openAppointmentModal('${log.petId}', '${log.petName}', '${log.ownerPhone}')" class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg px-2.5 py-1.5 border border-blue-200 flex items-center gap-1 text-[11px] font-bold shadow-sm transition" title="สร้างนัดหมายล่วงหน้า">
+                                <i class="ph-bold ph-calendar-plus text-sm"></i> นัดหมาย
+                            </button>
+                            <button onclick="window.toggleEditLog('${log.id}')" class="bg-white text-gray-500 hover:text-blue-600 rounded-lg p-1.5 border border-gray-200 hover:border-blue-200 transition shadow-sm" title="แก้ไขข้อมูลสัตว์ป่วย">
+                                <i class="ph-bold ph-pencil-simple text-sm"></i>
+                            </button>
+                            <button onclick="window.openDeleteModal('log', '${log.id}')" class="bg-white text-gray-500 hover:text-red-500 rounded-lg p-1.5 border border-gray-200 hover:border-red-200 transition shadow-sm" title="ลบข้อมูลเคสนี้">
+                                <i class="ph-bold ph-trash text-sm"></i>
+                            </button>
+                        </div>
 
                         <!-- ส่วนแสดงผลข้อมูลทั่วไป -->
                         <div id="log-header-display-${log.id}">
-                            <div class="flex items-center gap-2.5 mb-3.5 pr-24">
+                            <div class="flex items-center gap-2.5 mb-3.5 pr-[190px]">
                                 ${badgeHtml}
                                 <span class="text-[11px] font-bold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">ID: <span class="text-gray-800">${log.petId}</span></span>
+                                ${apptBadgeHtml}
+                                <button onclick="window.openPatientProfile('${log.petId}')" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100 transition shadow-sm flex items-center gap-1" title="ดูประวัติการรักษาทั้งหมดของน้อง">
+                                    <i class="ph-fill ph-folder-user text-sm"></i> เปิดแฟ้มประวัติ
+                                </button>
                             </div>
                             
                             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-4">
@@ -686,7 +1785,6 @@
                                 </span>
                             </div>
                             
-                            <!-- Chief Complaint Box -->
                             <div class="bg-[#F7F8F5] rounded-xl p-4 mb-5 border border-[#E5E7E1]">
                                 <p class="text-[11px] font-bold text-gray-500 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
                                     <i class="ph-fill ph-warning-circle text-sm text-gray-400"></i> อาการสำคัญ (Chief Complaint)
@@ -740,7 +1838,6 @@
                             ${updatesHtml}
                             ${emptyStateHtml}
                             
-                            <!-- Add Update Form (Soft Muted Colors) -->
                             <div class="mt-4 border border-gray-200 rounded-xl p-3 bg-[#F7F8F5] focus-within:border-cozy-green transition-all shadow-sm">
                                 
                                 <div class="grid grid-cols-2 gap-2 mb-2">
@@ -781,7 +1878,6 @@
                                     <textarea id="new-lab-${log.id}" rows="1" placeholder="ผลตรวจแล็บ (อธิบายด้วยข้อความ)..." class="w-full text-[13px] font-medium text-gray-800 bg-white border border-gray-200 rounded-lg py-2.5 pr-3 pl-9 outline-none resize-none overflow-hidden placeholder:text-gray-400 transition focus:border-violet-400 shadow-sm" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'"></textarea>
                                 </div>
 
-                                <!-- Section กรอกค่าแล็บ -->
                                 <div class="mb-2">
                                     <button type="button" onclick="document.getElementById('lab-grid-${log.id}').classList.toggle('hidden')" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition shadow-sm"><i class="ph-bold ph-chart-line-up text-sm"></i> ระบุตัวเลขค่าเลือด (สำหรับสร้างกราฟ)</button>
                                     <div id="lab-grid-${log.id}" class="hidden">
@@ -807,16 +1903,16 @@
                                         </label>
                                         
                                         <div class="flex items-center gap-1.5 w-full sm:w-auto flex-1">
-                                            <input type="text" id="ai-context-${log.id}" placeholder="ระบุอาการให้ AI วิเคราะห์ประกอบ (เช่น ซึม, อ้วก)..." class="w-full sm:min-w-[220px] text-[11px] font-semibold px-2.5 py-1.5 border border-purple-200 bg-purple-50/50 rounded-md outline-none focus:border-purple-400 focus:bg-white text-purple-900 placeholder:text-purple-300 shadow-sm transition">
-                                            <label class="shrink-0 cursor-pointer text-purple-600 hover:text-purple-700 transition flex items-center gap-1.5 text-[11px] font-bold bg-purple-50 px-2.5 py-1.5 rounded-md border border-purple-200 hover:bg-white shadow-sm" title="ให้ AI ช่วยอ่านผลเลือด/ผลแล็บ">
-                                                <i class="ph-fill ph-magic-wand text-base"></i> วิเคราะห์ผล
+                                            <input type="text" id="ai-context-${log.id}" placeholder="ระบุอาการให้ AI วิเคราะห์ประกอบ..." class="w-full sm:min-w-[220px] text-[11px] font-semibold px-2.5 py-1.5 border border-purple-200 bg-purple-50/50 rounded-md outline-none focus:border-purple-400 focus:bg-white text-purple-900 placeholder:text-purple-300 shadow-sm transition">
+                                            <label id="ai-label-${log.id}" class="shrink-0 cursor-pointer text-purple-600 hover:text-purple-700 transition flex items-center gap-1.5 text-[11px] font-bold bg-purple-50 px-2.5 py-1.5 rounded-md border border-purple-200 hover:bg-white shadow-sm" title="ให้ AI ช่วยอ่านผลเลือด/ผลแล็บ">
+                                                <span id="ai-btn-text-${log.id}" class="flex items-center gap-1.5"><i class="ph-fill ph-magic-wand text-base"></i> วิเคราะห์ผล</span>
                                                 <input type="file" id="lab-upload-${log.id}" accept="image/*" class="hidden" onchange="window.handleLabAnalysis(event, '${log.id}')">
                                             </label>
                                         </div>
                                     </div>
-
-                                    <button id="submit-update-btn-${log.id}" onclick="window.submitInlineUpdate('${log.id}')" class="shrink-0 text-xs font-bold bg-gray-800 text-white hover:bg-gray-900 px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm w-full lg:w-auto justify-center mt-2 lg:mt-0">
-                                        <i class="ph-bold ph-paper-plane-right text-white"></i> ส่งบันทึก
+                                    
+                                    <button id="submit-update-btn-${log.id}" onclick="window.submitInlineUpdate('${log.id}')" class="ml-auto shrink-0 text-xs font-bold bg-gray-800 text-white hover:bg-gray-900 px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm w-full lg:w-auto justify-center">
+                                        <i class="ph-bold ph-paper-plane-right text-white"></i> ส่งบันทึกอัปเดต
                                     </button>
                                 </div>
                             </div>
@@ -828,212 +1924,6 @@
             });
             
             logsContainer.innerHTML = logsHtmlArray.join('');
-        };
-
-        window.pendingImages = {};
-        window.pendingEditImages = {};
-        window.removedEditImages = {};
-
-        window.compressImage = function(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = event => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800; 
-                        const MAX_HEIGHT = 800;
-                        let width = img.width; 
-                        let height = img.height;
-                        
-                        if (width > height) { 
-                            if (width > MAX_WIDTH) { 
-                                height = Math.round(height * MAX_WIDTH / width); 
-                                width = MAX_WIDTH; 
-                            } 
-                        } else { 
-                            if (height > MAX_HEIGHT) { 
-                                width = Math.round(width * MAX_HEIGHT / height); 
-                                height = MAX_HEIGHT; 
-                            } 
-                        }
-                        
-                        canvas.width = width; 
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.8));
-                    };
-                    img.onerror = error => reject(error);
-                };
-                reader.onerror = error => reject(error);
-            });
-        };
-
-        window.handleImageSelect = function(event, id) {
-            const file = event.target.files[0];
-            if (file) {
-                window.pendingImages[id] = file;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    document.getElementById(`preview-image-${id}`).src = e.target.result;
-                    document.getElementById(`preview-container-${id}`).classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-
-        window.removePreview = function(id) {
-            delete window.pendingImages[id];
-            document.getElementById(`preview-container-${id}`).classList.add('hidden');
-            
-            const fileInput = document.getElementById(`file-upload-${id}`); 
-            if(fileInput) fileInput.value = '';
-            
-            const labInput = document.getElementById(`lab-upload-${id}`); 
-            if(labInput) labInput.value = '';
-            
-            const aiContextInput = document.getElementById(`ai-context-${id}`); 
-            if(aiContextInput) aiContextInput.value = '';
-        };
-
-        window.handleLabAnalysis = async function(event, id) {
-            const apiKey = localStorage.getItem('gemini_api_key');
-            if (!apiKey) {
-                window.openSettings(); 
-                return;
-            }
-
-            const file = event.target.files[0];
-            if (!file) return;
-
-            window.handleImageSelect(event, id);
-
-            const aiContextInput = document.getElementById(`ai-context-${id}`);
-            const aiContextText = aiContextInput ? aiContextInput.value.trim() : "";
-
-            const labBox = document.getElementById(`new-lab-${id}`);
-            const originalText = labBox.value;
-            labBox.value = "✨ AI กำลังวิเคราะห์ผลแล็บจากรูปภาพและอาการ... กรุณารอสักครู่...";
-            labBox.disabled = true;
-            labBox.style.height = 'auto';
-            labBox.style.height = labBox.scrollHeight + 'px';
-
-            try {
-                const base64Data = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result.split(',')[1]);
-                    reader.onerror = error => reject(error);
-                    reader.readAsDataURL(file);
-                });
-                
-                const genAI = new GoogleGenerativeAI(apiKey);
-                let contextString = aiContextText ? `\n\nอาการเบื้องต้นของสัตว์ป่วย (Clinical Context): ${aiContextText}` : "";
-                
-                const prompt = `คุณคือผู้ช่วยสัตวแพทย์ผู้เชี่ยวชาญ นี่คือภาพใบรายงานผลการตรวจเลือด/ผลแล็บของสัตว์เลี้ยง${contextString}\nโปรดวิเคราะห์รูปภาพและข้อมูลอาการ(ถ้ามี) แล้วตอบกลับมาในรูปแบบที่กำหนดไว้อย่างเคร่งครัดดังนี้:\n**Diagnosis:**\n(สรุปความผิดปกติหลักเป็น Medical Term เป็น Bullet points เช่น - Mild Anemia, - Severe Leukocytosis)\n**Note:**\n(อธิบายกลไก สาเหตุ หรือ Differential Diagnosis ที่เป็นไปได้แบบสั้นๆ ให้สัตวแพทย์อ่าน โดยเชื่อมโยงกับอาการเบื้องต้นถ้ามี)\n**CE (Client Education):**\n(สร้างประโยคสำหรับพูดคุยอธิบายกับเจ้าของสัตว์ ด้วยภาษาที่เข้าใจง่าย เป็นมิตร ไม่ใช้ศัพท์แพทย์ซับซ้อน พร้อมคำแนะนำเบื้องต้น)\nหากในรูปไม่ใช่ผลแล็บ ให้ตอบเพียงแค่ 'ไม่พบข้อมูลผลแล็บในรูปภาพ'`;
-
-                const imagePart = {
-                    inlineData: {
-                        data: base64Data,
-                        mimeType: file.type
-                    }
-                };
-
-                let result = null;
-                let lastError = null;
-                const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash", "gemini-1.5-flash-latest"];
-
-                for (const modelName of modelsToTry) {
-                    try {
-                        const model = genAI.getGenerativeModel({ model: modelName });
-                        result = await model.generateContent([prompt, imagePart]);
-                        if (result) break; 
-                    } catch (err) {
-                        lastError = err; 
-                    }
-                }
-
-                if (!result) throw lastError; 
-
-                const aiText = result.response.text();
-                labBox.value = (originalText ? originalText + "\n\n" : "") + aiText;
-                labBox.disabled = false;
-                
-            } catch (error) {
-                console.error("AI Error:", error);
-                labBox.value = originalText; 
-                labBox.disabled = false; 
-                
-                let errorMsg = "เกิดข้อผิดพลาดในการวิเคราะห์ AI:\n";
-                if (error && error.message) {
-                    if (error.message.includes("API key not valid")) {
-                        errorMsg += "API Key ไม่ถูกต้อง";
-                    } else {
-                        errorMsg += error.message;
-                    }
-                } else {
-                    errorMsg += "ข้อผิดพลาดที่ไม่ทราบสาเหตุ";
-                }
-                alert(errorMsg);
-            } finally {
-                labBox.style.height = 'auto';
-                labBox.style.height = labBox.scrollHeight + 'px';
-            }
-        };
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-lg text-white"></i> <span>กำลังบันทึก...</span>';
-            btn.disabled = true;
-
-            const newLog = {
-                petId: document.getElementById('petId').value,
-                petName: document.getElementById('petName').value,
-                species: document.getElementById('species').value,
-                dob: document.getElementById('dob').value,
-                ownerPhone: document.getElementById('ownerPhone').value,
-                date: document.getElementById('date').value,
-                symptoms: document.getElementById('symptoms').value,
-                caseType: document.querySelector('input[name="caseType"]:checked').value,
-                updates: [],
-                isDischarged: false, 
-                dischargeDate: null,
-                createdAt: new Date().toISOString()
-            };
-
-            try {
-                const newDocRef = doc(logsRef); 
-                await setDoc(newDocRef, newLog);
-                
-                petLogs.unshift({ id: newDocRef.id, ...newLog });
-                petLogs.sort((a, b) => {
-                    if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
-                    return new Date(b.createdAt) - new Date(a.createdAt);
-                });
-                
-                form.reset();
-                document.getElementById('date').valueAsDate = new Date();
-                document.querySelector('input[name="caseType"][value="OPD"]').checked = true;
-                window.renderLogs();
-                
-            } catch (error) {
-                console.error("Error adding document: ", error);
-                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        });
-
-        // ฟังก์ชันช่วยดึงค่าตัวเลข
-        const getLabNum = (prefix, field, id) => {
-            const el = document.getElementById(`${prefix}-${field}-${id}`);
-            if (!el || el.value === '') return null;
-            return parseFloat(el.value);
         };
 
         window.submitInlineUpdate = async function(id) {
@@ -1052,35 +1942,19 @@
             const labText = getVal('lab');
             const ceText = getVal('ce');
             
-            // ดึงค่าแล็บตัวเลข
             const ld_labDate = document.getElementById(`new-ld-labDate-${id}`) ? document.getElementById(`new-ld-labDate-${id}`).value : '';
-            const ld_hct = getLabNum('new-ld', 'hct', id);
-            const ld_mcv = getLabNum('new-ld', 'mcv', id);
-            const ld_mchc = getLabNum('new-ld', 'mchc', id);
-            const ld_wbc = getLabNum('new-ld', 'wbc', id);
-            const ld_neu = getLabNum('new-ld', 'neu', id);
-            const ld_neu_count = getLabNum('new-ld', 'neu_count', id);
-            const ld_lym = getLabNum('new-ld', 'lym', id);
-            const ld_lym_count = getLabNum('new-ld', 'lym_count', id);
-            const ld_plt = getLabNum('new-ld', 'plt', id);
-            const ld_bun = getLabNum('new-ld', 'bun', id);
-            const ld_creat = getLabNum('new-ld', 'creat', id);
-            const ld_alt = getLabNum('new-ld', 'alt', id);
-            const ld_ast = getLabNum('new-ld', 'ast', id);
-            const ld_alp = getLabNum('new-ld', 'alp', id);
-
             const labData = {
                 labDate: ld_labDate,
-                hct: ld_hct, mcv: ld_mcv, mchc: ld_mchc,
-                wbc: ld_wbc, neu: ld_neu, neu_count: ld_neu_count, lym: ld_lym, lym_count: ld_lym_count, plt: ld_plt,
-                bun: ld_bun, creat: ld_creat, alt: ld_alt, ast: ld_ast, alp: ld_alp
+                hct: getLabNum('new-ld', 'hct', id), mcv: getLabNum('new-ld', 'mcv', id), mchc: getLabNum('new-ld', 'mchc', id),
+                wbc: getLabNum('new-ld', 'wbc', id), neu_count: getLabNum('new-ld', 'neu_count', id), lym_count: getLabNum('new-ld', 'lym_count', id), mono_count: getLabNum('new-ld', 'mono_count', id), eos_count: getLabNum('new-ld', 'eos_count', id), baso_count: getLabNum('new-ld', 'baso_count', id),
+                plt: getLabNum('new-ld', 'plt', id),
+                bun: getLabNum('new-ld', 'bun', id), creat: getLabNum('new-ld', 'creat', id), alt: getLabNum('new-ld', 'alt', id), ast: getLabNum('new-ld', 'ast', id), alp: getLabNum('new-ld', 'alp', id)
             };
 
             const hasLabData = Object.keys(labData).some(k => k !== 'labDate' && labData[k] !== null);
-
             const file = window.pendingImages[id];
-            
-            if (!updateText && !treatmentText && !labText && !newWeight && !newTemp && !peText && !ddxText && !dxText && !ceText && !file && !hasLabData) return;
+
+            if (!updateText && !treatmentText && !labText && !newWeight && !newTemp && !peText && !ddxText && !dxText && !ceText && !hasLabData && !file) return;
 
             const btn = document.getElementById(`submit-update-btn-${id}`);
             const originalBtnHtml = btn.innerHTML;
@@ -1094,84 +1968,29 @@
                 }
 
                 const now = new Date();
-                const timeString = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + 
-                                   now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
-
+                const timeString = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
                 const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
                 const targetLog = petLogs.find(l => l.id === id);
                 const currentUpdates = targetLog.updates || [];
                 
                 const newUpdateObj = { 
-                    weight: newWeight,
-                    temp: newTemp,
-                    text: updateText, 
-                    pe: peText,
-                    diffDiag: ddxText,
-                    finalDiag: dxText,
-                    treatment: treatmentText, 
-                    labResult: labText,
-                    ce: ceText,
-                    labData: hasLabData ? labData : null, 
-                    timestamp: timeString, 
-                    imageUrl: imageUrl 
+                    weight: newWeight, temp: newTemp, text: updateText, pe: peText, diffDiag: ddxText, finalDiag: dxText, 
+                    treatment: treatmentText, labResult: labText, ce: ceText, labData: hasLabData ? labData : null, 
+                    timestamp: timeString, imageUrl: imageUrl 
                 };
 
-                await updateDoc(docRef, {
-                    updates: [...currentUpdates, newUpdateObj]
-                });
-
+                await updateDoc(docRef, { updates: [...currentUpdates, newUpdateObj] });
                 targetLog.updates.push(newUpdateObj);
-
+                
                 window.removePreview(id);
                 window.renderLogs();
+                showAlert('บันทึกการอัปเดตเรียบร้อย', 'success');
             } catch (error) {
                 console.error("Error updating document: ", error);
-                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง: " + error.message);
+                showAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
             } finally {
-                btn.innerHTML = originalBtnHtml;
-                btn.disabled = false;
+                if(btn) { btn.innerHTML = originalBtnHtml; btn.disabled = false; }
             }
-        };
-
-        window.handleEditImageSelect = function(event, id, index) {
-            const file = event.target.files[0];
-            if (file) {
-                window.pendingEditImages[`${id}-${index}`] = file;
-                window.removedEditImages[`${id}-${index}`] = false;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    document.getElementById(`edit-preview-image-${id}-${index}`).src = e.target.result;
-                    document.getElementById(`edit-preview-container-${id}-${index}`).classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-
-        window.removeEditPreview = function(id, index) {
-            delete window.pendingEditImages[`${id}-${index}`];
-            window.removedEditImages[`${id}-${index}`] = true;
-            document.getElementById(`edit-preview-container-${id}-${index}`).classList.add('hidden');
-            document.getElementById(`edit-file-upload-${id}-${index}`).value = '';
-        };
-
-        window.toggleEditUpdate = function(id, index) {
-            document.getElementById(`update-display-${id}-${index}`).classList.add('hidden');
-            document.getElementById(`update-edit-${id}-${index}`).classList.remove('hidden');
-            
-            const fields = ['textarea', 'pe', 'ddx', 'dx', 'treatment', 'lab', 'ce'];
-            fields.forEach(field => {
-                const el = document.getElementById(`update-${field}-${id}-${index}`);
-                if(el) {
-                    el.style.height = 'auto';
-                    el.style.height = el.scrollHeight + 'px';
-                }
-            });
-        };
-
-        window.cancelEditUpdate = function(id, index) {
-            delete window.pendingEditImages[`${id}-${index}`];
-            delete window.removedEditImages[`${id}-${index}`];
-            window.renderLogs(); 
         };
 
         window.saveEditUpdate = async function(id, index) {
@@ -1191,26 +2010,13 @@
             const newCe = getVal('ce');
             
             const ld_labDate = document.getElementById(`update-ld-labDate-${id}-${index}`) ? document.getElementById(`update-ld-labDate-${id}-${index}`).value : '';
-            const ld_hct = getLabNum('update-ld', 'hct', id + '-' + index);
-            const ld_mcv = getLabNum('update-ld', 'mcv', id + '-' + index);
-            const ld_mchc = getLabNum('update-ld', 'mchc', id + '-' + index);
-            const ld_wbc = getLabNum('update-ld', 'wbc', id + '-' + index);
-            const ld_neu = getLabNum('update-ld', 'neu', id + '-' + index);
-            const ld_neu_count = getLabNum('update-ld', 'neu_count', id + '-' + index);
-            const ld_lym = getLabNum('update-ld', 'lym', id + '-' + index);
-            const ld_lym_count = getLabNum('update-ld', 'lym_count', id + '-' + index);
-            const ld_plt = getLabNum('update-ld', 'plt', id + '-' + index);
-            const ld_bun = getLabNum('update-ld', 'bun', id + '-' + index);
-            const ld_creat = getLabNum('update-ld', 'creat', id + '-' + index);
-            const ld_alt = getLabNum('update-ld', 'alt', id + '-' + index);
-            const ld_ast = getLabNum('update-ld', 'ast', id + '-' + index);
-            const ld_alp = getLabNum('update-ld', 'alp', id + '-' + index);
-
+            const suffix = id + '-' + index;
             const labData = {
                 labDate: ld_labDate,
-                hct: ld_hct, mcv: ld_mcv, mchc: ld_mchc,
-                wbc: ld_wbc, neu: ld_neu, neu_count: ld_neu_count, lym: ld_lym, lym_count: ld_lym_count, plt: ld_plt,
-                bun: ld_bun, creat: ld_creat, alt: ld_alt, ast: ld_ast, alp: ld_alp
+                hct: getLabNum('update-ld', 'hct', suffix), mcv: getLabNum('update-ld', 'mcv', suffix), mchc: getLabNum('update-ld', 'mchc', suffix),
+                wbc: getLabNum('update-ld', 'wbc', suffix), neu_count: getLabNum('update-ld', 'neu_count', suffix), lym_count: getLabNum('update-ld', 'lym_count', suffix), mono_count: getLabNum('update-ld', 'mono_count', suffix), eos_count: getLabNum('update-ld', 'eos_count', suffix), baso_count: getLabNum('update-ld', 'baso_count', suffix),
+                plt: getLabNum('update-ld', 'plt', suffix),
+                bun: getLabNum('update-ld', 'bun', suffix), creat: getLabNum('update-ld', 'creat', suffix), alt: getLabNum('update-ld', 'alt', suffix), ast: getLabNum('update-ld', 'ast', suffix), alp: getLabNum('update-ld', 'alp', suffix)
             };
             const hasLabData = Object.keys(labData).some(k => k !== 'labDate' && labData[k] !== null);
 
@@ -1256,215 +2062,15 @@
                 delete window.removedEditImages[`${id}-${index}`];
                 
                 window.renderLogs();
+                showAlert('บันทึกการแก้ไขเรียบร้อย', 'success');
             } catch (error) {
                 console.error("Error editing update: ", error);
-                alert("เกิดข้อผิดพลาดในการบันทึกรูป: " + error.message);
+                showAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message, "error");
             } finally {
-                btn.innerHTML = originalBtnHtml;
-                btn.disabled = false;
+                if(btn) { btn.innerHTML = originalBtnHtml; btn.disabled = false; }
             }
         };
 
-        // --- ระบบวาดกราฟ (Chart.js) ---
-        window.openChartModal = function(id) {
-            const log = petLogs.find(l => l.id === id);
-            if (!log || !log.updates) return;
-
-            const chartModal = document.getElementById('chartModal');
-            chartModal.classList.remove('hidden');
-            chartModal.classList.add('flex');
-
-            // ดึงเฉพาะอัปเดตที่มีตัวเลขค่าเลือด
-            const updatesWithLab = log.updates.filter(u => u.labData && Object.keys(u.labData).some(k => k !== 'labDate' && u.labData[k] !== null && u.labData[k] !== ''));
-            
-            // เตรียมข้อมูล
-            const labels = [];
-            const data = { hct: [], mcv: [], mchc: [], wbc: [], neu: [], neu_count: [], lym: [], lym_count: [], plt: [], bun: [], creat: [], alt: [], ast: [], alp: [] };
-
-            // จัดเรียงตามเวลา (เรียงตามวันที่ตรวจเลือด labDate เป็นหลัก)
-            const sortedUpdates = [...updatesWithLab].sort((a, b) => {
-                const dateA = (a.labData && a.labData.labDate) ? a.labData.labDate : "9999-99-99";
-                const dateB = (b.labData && b.labData.labDate) ? b.labData.labDate : "9999-99-99";
-                if(dateA !== dateB) return dateA.localeCompare(dateB);
-                return 0;
-            });
-
-            sortedUpdates.forEach(u => {
-                // เอหวันที่ตรวจเลือดมาแสดง ถ้าไม่มีใช้วันที่อัปเดต
-                let dateLabel = 'N/A';
-                if (u.labData && u.labData.labDate) {
-                    const d = new Date(u.labData.labDate);
-                    if (!isNaN(d)) {
-                        dateLabel = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
-                    }
-                } else if (u.timestamp) {
-                    dateLabel = u.timestamp.split(',')[0];
-                }
-                labels.push(dateLabel);
-
-                data.hct.push(u.labData.hct);
-                data.mcv.push(u.labData.mcv);
-                data.mchc.push(u.labData.mchc);
-                
-                data.wbc.push(u.labData.wbc);
-                data.neu.push(u.labData.neu);
-                data.neu_count.push(u.labData.neu_count);
-                data.lym.push(u.labData.lym);
-                data.lym_count.push(u.labData.lym_count);
-                data.plt.push(u.labData.plt);
-                
-                data.bun.push(u.labData.bun);
-                data.creat.push(u.labData.creat);
-                data.alt.push(u.labData.alt);
-                data.ast.push(u.labData.ast);
-                data.alp.push(u.labData.alp);
-            });
-
-            // ลบกราฟเก่าทิ้งก่อนวาดใหม่
-            activeCharts.forEach(chart => chart.destroy());
-            activeCharts = [];
-
-            // ตั้งค่าทั่วไปของกราฟ
-            const commonOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                spanGaps: true, // ลากเส้นข้ามจุดที่ไม่มีข้อมูล (null)
-                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 6 } } }
-            };
-
-            // 1. RBC Chart
-            const ctxRBC = document.getElementById('chart-rbc').getContext('2d');
-            activeCharts.push(new Chart(ctxRBC, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Hct (%)', data: data.hct, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.3 },
-                        { label: 'MCV (fL)', data: data.mcv, borderColor: '#f97316', backgroundColor: '#f97316', tension: 0.3 },
-                        { label: 'MCHC (g/dL)', data: data.mchc, borderColor: '#eab308', backgroundColor: '#eab308', tension: 0.3 }
-                    ]
-                },
-                options: commonOptions
-            }));
-
-            // 2. WBC & PLT Chart (แยก 2 แกน Y) - มี Count เข้ามาด้วย
-            const ctxWBC = document.getElementById('chart-wbc-plt').getContext('2d');
-            activeCharts.push(new Chart(ctxWBC, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'WBC (x10³)', data: data.wbc, borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', yAxisID: 'y', tension: 0.3 },
-                        { label: 'Neu (%)', data: data.neu, borderColor: '#d946ef', backgroundColor: '#d946ef', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
-                        { label: 'Neu (count)', data: data.neu_count, borderColor: '#c026d3', backgroundColor: '#c026d3', yAxisID: 'y', tension: 0.3, hidden: true },
-                        { label: 'Lym (%)', data: data.lym, borderColor: '#6366f1', backgroundColor: '#6366f1', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
-                        { label: 'Lym (count)', data: data.lym_count, borderColor: '#4f46e5', backgroundColor: '#4f46e5', yAxisID: 'y', tension: 0.3, hidden: true },
-                        // PLT ไปอยู่แกนขวา
-                        { label: 'PLT (x10³)', data: data.plt, borderColor: '#14b8a6', backgroundColor: '#14b8a6', yAxisID: 'y1', tension: 0.3 }
-                    ]
-                },
-                options: {
-                    ...commonOptions,
-                    scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'WBC / Count / %' } },
-                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'PLT' }, grid: { drawOnChartArea: false } }
-                    }
-                }
-            }));
-
-            // 3. Chem Chart (แยกแกนให้ Creatinine)
-            const ctxChem = document.getElementById('chart-chem').getContext('2d');
-            activeCharts.push(new Chart(ctxChem, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'BUN', data: data.bun, borderColor: '#3b82f6', backgroundColor: '#3b82f6', yAxisID: 'y', tension: 0.3 },
-                        { label: 'ALT', data: data.alt, borderColor: '#22c55e', backgroundColor: '#22c55e', yAxisID: 'y', tension: 0.3 },
-                        { label: 'AST', data: data.ast, borderColor: '#10b981', backgroundColor: '#10b981', yAxisID: 'y', borderDash: [5, 5], tension: 0.3 },
-                        { label: 'ALP', data: data.alp, borderColor: '#84cc16', backgroundColor: '#84cc16', yAxisID: 'y', tension: 0.3 },
-                        // Creatinine ไปอยู่แกนขวา (เพราะค่าต่ำ)
-                        { label: 'Creatinine', data: data.creat, borderColor: '#f43f5e', backgroundColor: '#f43f5e', yAxisID: 'y1', tension: 0.3 }
-                    ]
-                },
-                options: {
-                    ...commonOptions,
-                    scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Enzymes / BUN' } },
-                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Creatinine' }, grid: { drawOnChartArea: false } }
-                    }
-                }
-            }));
-        };
-
-        window.closeChartModal = function() {
-            document.getElementById('chartModal').classList.remove('flex');
-            document.getElementById('chartModal').classList.add('hidden');
-        };
-
-        window.toggleDischarge = async function(id, isChecked) {
-            try {
-                const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
-                let updateData = { isDischarged: isChecked };
-                
-                if (isChecked) {
-                    const now = new Date();
-                    updateData.dischargeDate = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + 
-                                               now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
-                } else {
-                    updateData.dischargeDate = null;
-                }
-
-                await updateDoc(docRef, updateData);
-                
-                const targetLog = petLogs.find(l => l.id === id);
-                targetLog.isDischarged = isChecked;
-                targetLog.dischargeDate = updateData.dischargeDate;
-                window.renderLogs();
-                
-            } catch (error) {
-                console.error("Error updating discharge status: ", error);
-            }
-        };
-
-        const modal = document.getElementById('deleteModal');
-        const modalContent = document.getElementById('deleteModalContent');
-        
-        window.openDeleteModal = function(id, isUpdate = false, index = null) {
-            logIdToDelete = id;
-            updateIndexToDelete = isUpdate ? index : null;
-            
-            const title = document.getElementById('deleteModalTitle');
-            const text = document.getElementById('deleteModalText');
-
-            if (isUpdate) {
-                title.innerText = "ยืนยันการลบอัปเดต";
-                text.innerHTML = "คุณแน่ใจหรือไม่ว่าต้องการลบอัปเดตนี้?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้";
-            } else {
-                title.innerText = "ยืนยันการลบประวัติ";
-                text.innerHTML = "คุณแน่ใจหรือไม่ว่าต้องการลบประวัตินี้ทั้งหมด?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้";
-            }
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            setTimeout(() => {
-                modalContent.classList.remove('scale-95');
-                modalContent.classList.add('scale-100');
-            }, 10);
-        };
-
-        window.closeDeleteModal = function() {
-            logIdToDelete = null;
-            updateIndexToDelete = null;
-            modalContent.classList.remove('scale-100');
-            modalContent.classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.remove('flex');
-                modal.classList.add('hidden');
-            }, 200);
-        };
-
-        // --- ระบบแก้ไขข้อมูลสัตว์ป่วย (Header Edit) ---
         window.toggleEditLog = function(id) {
             document.getElementById(`log-header-display-${id}`).classList.add('hidden');
             document.getElementById(`log-header-edit-${id}`).classList.remove('hidden');
@@ -1483,127 +2089,106 @@
             const newSymptoms = document.getElementById(`edit-symptoms-${id}`).value.trim();
 
             if (!newName) return alert("กรุณาใส่ชื่อสัตว์เลี้ยง");
-
             const btn = document.getElementById(`save-log-btn-${id}`);
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = 'บันทึก...'; 
-            btn.disabled = true;
+            btn.innerHTML = 'บันทึก...'; btn.disabled = true;
 
             try {
-                const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
-                await updateDoc(docRef, {
-                    petName: newName,
-                    ownerPhone: newPhone,
-                    species: newSpecies,
-                    dob: newDob,
-                    symptoms: newSymptoms
+                await updateDoc(doc(db, 'clinics', 'my-clinic', 'petLogs', id), {
+                    petName: newName, ownerPhone: newPhone, species: newSpecies, dob: newDob, symptoms: newSymptoms
                 });
-
                 const targetLog = petLogs.find(l => l.id === id);
-                targetLog.petName = newName;
-                targetLog.ownerPhone = newPhone;
-                targetLog.species = newSpecies;
-                targetLog.dob = newDob;
-                targetLog.symptoms = newSymptoms;
-
+                targetLog.petName = newName; targetLog.ownerPhone = newPhone; targetLog.species = newSpecies; targetLog.dob = newDob; targetLog.symptoms = newSymptoms;
                 window.renderLogs();
+                showAlert("บันทึกการแก้ไขเคสแล้ว", "success");
             } catch (error) {
                 console.error("Error editing log: ", error);
-                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+                showAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
             } finally {
-                btn.innerHTML = originalHtml; 
-                btn.disabled = false;
+                btn.innerHTML = originalHtml; btn.disabled = false;
             }
         };
 
-        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
-            if (logIdToDelete) {
-                const btn = document.getElementById('confirmDeleteBtn');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-white"></i> ลบ...';
-                btn.disabled = true;
+        window.openChartModal = function(id) {
+            const log = petLogs.find(l => l.id === id);
+            if (!log || !log.updates) return;
 
-                try {
-                    if (updateIndexToDelete !== null) {
-                        const targetLog = petLogs.find(l => l.id === logIdToDelete);
-                        if (targetLog) {
-                            const currentUpdates = [...targetLog.updates];
-                            currentUpdates.splice(updateIndexToDelete, 1);
-                            const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', logIdToDelete);
-                            await updateDoc(docRef, { updates: currentUpdates });
-                            
-                            targetLog.updates = currentUpdates;
-                        }
-                    } else {
-                        await deleteDoc(doc(db, 'clinics', 'my-clinic', 'petLogs', logIdToDelete));
-                        petLogs = petLogs.filter(l => l.id !== logIdToDelete);
-                    }
-                    window.closeDeleteModal();
-                    window.renderLogs();
-                } catch (error) {
-                    console.error("Error deleting document: ", error);
-                    alert("ลบข้อมูลไม่สำเร็จ");
-                } finally {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
+            const chartModal = document.getElementById('chartModal');
+            chartModal.classList.remove('hidden');
+            chartModal.classList.add('flex');
+
+            const updatesWithLab = log.updates.filter(u => u.labData && Object.keys(u.labData).some(k => k !== 'labDate' && u.labData[k] !== null && u.labData[k] !== ''));
+            const labels = [];
+            const data = { hct: [], mcv: [], mchc: [], wbc: [], neu_count: [], lym_count: [], mono_count: [], eos_count: [], baso_count: [], plt: [], bun: [], creat: [], alt: [], ast: [], alp: [] };
+
+            const sortedUpdates = [...updatesWithLab].sort((a, b) => {
+                const dateA = (a.labData && a.labData.labDate) ? a.labData.labDate : "9999-99-99";
+                const dateB = (b.labData && b.labData.labDate) ? b.labData.labDate : "9999-99-99";
+                if(dateA !== dateB) return dateA.localeCompare(dateB);
+                return 0;
+            });
+
+            sortedUpdates.forEach(u => {
+                let dateLabel = 'N/A';
+                if (u.labData && u.labData.labDate) {
+                    const d = new Date(u.labData.labDate);
+                    if (!isNaN(d)) dateLabel = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                } else if (u.timestamp) {
+                    dateLabel = u.timestamp.split(',')[0];
                 }
-            }
-        });
+                labels.push(dateLabel);
 
-        const aiModal = document.getElementById('aiSettingsModal');
-        const aiModalContent = document.getElementById('aiSettingsModalContent');
+                data.hct.push(u.labData.hct); data.mcv.push(u.labData.mcv); data.mchc.push(u.labData.mchc);
+                data.wbc.push(u.labData.wbc); data.neu_count.push(u.labData.neu_count); data.lym_count.push(u.labData.lym_count); data.mono_count.push(u.labData.mono_count); data.eos_count.push(u.labData.eos_count); data.baso_count.push(u.labData.baso_count);
+                data.plt.push(u.labData.plt);
+                data.bun.push(u.labData.bun); data.creat.push(u.labData.creat); data.alt.push(u.labData.alt); data.ast.push(u.labData.ast); data.alp.push(u.labData.alp);
+            });
 
-        window.openSettings = function() {
-            aiModal.classList.remove('hidden');
-            aiModal.classList.add('flex');
-            setTimeout(() => {
-                aiModalContent.classList.remove('scale-95');
-                aiModalContent.classList.add('scale-100');
-            }, 10);
+            activeCharts.forEach(chart => chart.destroy());
+            activeCharts = [];
+
+            const commonOptions = {
+                responsive: true, maintainAspectRatio: false, spanGaps: true, 
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 20, font: { family: 'Inter, Noto Sans Thai' } } } },
+                scales: { x: { grid: { display: false }, ticks: { font: { family: 'Inter' } } }, y: { border: { dash: [4, 4], display: false }, grid: { color: '#f3f4f6' }, ticks: { font: { family: 'Inter' } } } }
+            };
+
+            const ctxRBC = document.getElementById('chart-rbc').getContext('2d');
+            activeCharts.push(new Chart(ctxRBC, { type: 'line', data: { labels: labels, datasets: [ { label: 'Hct (%)', data: data.hct, borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'MCV (fL)', data: data.mcv, borderColor: '#ea580c', backgroundColor: '#ea580c', borderWidth: 2.5, tension: 0.3, pointRadius: 4 }, { label: 'MCHC (g/dL)', data: data.mchc, borderColor: '#9a3412', backgroundColor: '#9a3412', borderWidth: 2.5, tension: 0.3, pointRadius: 4 } ] }, options: commonOptions }));
+
+            const ctxWBC = document.getElementById('chart-wbc').getContext('2d');
+            activeCharts.push(new Chart(ctxWBC, { data: { labels: labels, datasets: [ { type: 'line', label: 'WBC Total (x10³)', data: data.wbc, borderColor: '#081d43', backgroundColor: '#081d43', borderWidth: 3.5, tension: 0.3, pointRadius: 5, pointHoverRadius: 7, order: 0 }, { type: 'bar', label: 'Neu (count)', data: data.neu_count, backgroundColor: '#1e3a8a', stack: 'Stack 0', borderRadius: 4, order: 1 }, { type: 'bar', label: 'Lym (count)', data: data.lym_count, backgroundColor: '#2563eb', stack: 'Stack 0', borderRadius: 4, order: 2 }, { type: 'bar', label: 'Mono (count)', data: data.mono_count, backgroundColor: '#3b82f6', stack: 'Stack 0', borderRadius: 4, order: 3 }, { type: 'bar', label: 'Eos (count)', data: data.eos_count, backgroundColor: '#60a5fa', stack: 'Stack 0', borderRadius: 4, order: 4 }, { type: 'bar', label: 'Baso (count)', data: data.baso_count, backgroundColor: '#93c5fd', stack: 'Stack 0', borderRadius: 4, order: 5 } ] }, options: { ...commonOptions, scales: { x: { ...commonOptions.scales.x, stacked: true }, y: { ...commonOptions.scales.y, title: { display: true, text: 'Count (x10³)', font: { family: 'Inter', size: 11 } } } } } }));
+
+            const ctxPLT = document.getElementById('chart-plt').getContext('2d');
+            activeCharts.push(new Chart(ctxPLT, { type: 'line', data: { labels: labels, datasets: [ { label: 'PLT (x10³)', data: data.plt, borderColor: '#0d9488', backgroundColor: '#0d9488', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 } ] }, options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'PLT (x10³)', font: { family: 'Inter', size: 11 } } } } } }));
+
+            const ctxLiver = document.getElementById('chart-liver').getContext('2d');
+            activeCharts.push(new Chart(ctxLiver, { type: 'line', data: { labels: labels, datasets: [ { label: 'ALT (U/L)', data: data.alt, borderColor: '#16a34a', backgroundColor: '#16a34a', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'AST (U/L)', data: data.ast, borderColor: '#15803d', backgroundColor: '#15803d', borderWidth: 2.5, borderDash: [4, 4], tension: 0.3, pointRadius: 4 }, { label: 'ALP (U/L)', data: data.alp, borderColor: '#14532d', backgroundColor: '#14532d', borderWidth: 2.5, tension: 0.3, pointRadius: 4 } ] }, options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, title: { display: true, text: 'Enzymes (U/L)', font: { family: 'Inter', size: 11 } } } } } }));
+
+            const ctxKidney = document.getElementById('chart-kidney').getContext('2d');
+            activeCharts.push(new Chart(ctxKidney, { type: 'line', data: { labels: labels, datasets: [ { label: 'BUN (mg/dL)', data: data.bun, borderColor: '#f59e0b', backgroundColor: '#f59e0b', yAxisID: 'y', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }, { label: 'Creatinine (mg/dL)', data: data.creat, borderColor: '#b45309', backgroundColor: '#b45309', yAxisID: 'y1', borderWidth: 3.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 } ] }, options: { ...commonOptions, scales: { x: commonOptions.scales.x, y: { ...commonOptions.scales.y, type: 'linear', display: true, position: 'left', title: { display: true, text: 'BUN (mg/dL)', font: { family: 'Inter', size: 11 } } }, y1: { ...commonOptions.scales.y, type: 'linear', display: true, position: 'right', title: { display: true, text: 'Creatinine (mg/dL)', font: { family: 'Inter', size: 11 } }, grid: { drawOnChartArea: false } } } } }));
         };
 
-        window.closeSettings = function() {
-            aiModalContent.classList.remove('scale-100');
-            aiModalContent.classList.add('scale-95');
-            setTimeout(() => {
-                aiModal.classList.remove('flex');
-                aiModal.classList.add('hidden');
-            }, 200);
+        window.closeChartModal = function() {
+            document.getElementById('chartModal').classList.remove('flex');
+            document.getElementById('chartModal').classList.add('hidden');
         };
 
-        window.saveSettings = function() {
-            const key = document.getElementById('geminiApiKey').value.trim();
-            if (key) {
-                localStorage.setItem('gemini_api_key', key);
-                alert("บันทึก API Key เรียบร้อยแล้ว สามารถใช้งาน AI วิเคราะห์ผลแล็บได้ทันที");
-            } else {
-                localStorage.removeItem('gemini_api_key');
-            }
-            window.closeSettings();
-        };
+        window.toggleDischarge = async function(id, isChecked) {
+            try {
+                const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
+                let updateData = { isDischarged: isChecked };
+                if (isChecked) {
+                    const now = new Date();
+                    updateData.dischargeDate = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+                } else { updateData.dischargeDate = null; }
 
-        // --- ระบบ Image Lightbox (ขยายรูปภาพ) ---
-        const imageModal = document.getElementById('imageModal');
-        const imageModalContent = document.getElementById('imageModalContent');
-
-        window.openImageModal = function(url) {
-            imageModalContent.src = url;
-            imageModal.classList.remove('hidden');
-            imageModal.classList.add('flex');
-            setTimeout(() => {
-                imageModalContent.classList.remove('scale-95');
-                imageModalContent.classList.add('scale-100');
-            }, 10);
-        };
-
-        window.closeImageModal = function() {
-            imageModalContent.classList.remove('scale-100');
-            imageModalContent.classList.add('scale-95');
-            setTimeout(() => {
-                imageModal.classList.remove('flex');
-                imageModal.classList.add('hidden');
-                setTimeout(() => { imageModalContent.src = ''; }, 100);
-            }, 200);
+                await updateDoc(docRef, updateData);
+                const targetLog = petLogs.find(l => l.id === id);
+                targetLog.isDischarged = isChecked; targetLog.dischargeDate = updateData.dischargeDate;
+                window.renderLogs();
+            } catch (error) { console.error("Error updating discharge status: ", error); }
         };
 
     </script>
