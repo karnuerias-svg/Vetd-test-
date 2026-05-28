@@ -722,8 +722,7 @@
 
             try {
                 const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
-
+                
                 const prompt = `คุณเป็นผู้ช่วยสัตวแพทย์ที่เชี่ยวชาญการสื่อสารกับเจ้าของสัตว์เลี้ยง
 โปรดนำข้อมูลดิบ/บันทึกย่อทางการแพทย์ต่อไปนี้ มาแต่งและเรียบเรียงใหม่เป็นข้อความภาษาไทยสำหรับส่งแชท Line แจ้งอัปเดตอาการหาเจ้าของสัตว์เลี้ยง
 - ให้ใช้ภาษาที่สุภาพ เป็นมิตร อบอุ่น และเข้าใจง่าย
@@ -734,12 +733,44 @@
 ข้อมูลตั้งต้น:
 "${rawInput}"`;
 
-                const result = await model.generateContent(prompt);
+                let result = null;
+                let lastError = null;
+                
+                // ให้ระบบไล่ทดสอบโมเดลต่างๆ เผื่อ API Key ไม่รองรับบางรุ่น
+                const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
+
+                for (const modelName of modelsToTry) {
+                    try {
+                        const model = genAI.getGenerativeModel({ model: modelName });
+                        result = await model.generateContent(prompt);
+                        if (result) break; // ถ้าเจนผ่านให้หยุดลูป
+                    } catch (err) {
+                        lastError = err; 
+                    }
+                }
+
+                if (!result) throw lastError;
+
                 outputBox.value = result.response.text().trim();
                 
             } catch (error) {
                 console.error("Floating CE AI Error:", error);
-                showAlert("เกิดข้อผิดพลาดในการเรียกใช้ AI กรุณาตรวจสอบ API Key", "error");
+                
+                // ถอดรหัส Error ออกมาแจ้งเตือนให้ชัดเจน
+                let errorMsg = "เกิดข้อผิดพลาดในการวิเคราะห์ AI:\n";
+                if (error && error.message) {
+                    if (error.message.includes("API key not valid")) {
+                        errorMsg += "API Key ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
+                    } else if (error.message.includes("404") || error.message.includes("not found")) {
+                        errorMsg += "ไม่พบโมเดล (ลองสร้าง API Key อันใหม่จาก Google AI Studio ดูครับ)";
+                    } else {
+                        errorMsg += error.message;
+                    }
+                } else {
+                    errorMsg += "กรุณาตรวจสอบ API Key หรือการเชื่อมต่ออินเทอร์เน็ต";
+                }
+                showAlert(errorMsg, "error");
+                
             } finally {
                 btn.innerHTML = origBtnHtml;
                 btn.disabled = false;
