@@ -58,7 +58,7 @@
         .modal-exit-active { opacity: 0; transform: scale(0.98); transition: all 0.1s ease-in; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 min-h-screen">
+<body class="bg-gray-50 text-gray-800 min-h-screen relative pb-20">
 
     <nav class="bg-cozy-green text-white sticky top-0 z-40 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -197,6 +197,41 @@
     </div>
 
 
+    <!-- ================= FLOATING AI ASSISTANT (ใหม่) ================= -->
+    <button onclick="window.toggleFloatingAI()" class="fixed bottom-6 right-6 z-[90] bg-yellow-500 text-white p-4 rounded-full shadow-[0_8px_30px_rgba(234,179,8,0.4)] hover:bg-yellow-600 transition-all hover:scale-105 group flex items-center justify-center gap-2 border border-yellow-400/50">
+        <span class="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-in-out whitespace-nowrap font-bold text-sm">ผู้ช่วยร่างแชทเจ้าของ</span>
+        <i class="ph-fill ph-magic-wand text-2xl"></i>
+    </button>
+
+    <div id="floatingAIPanel" class="fixed bottom-24 right-6 z-[95] bg-white w-80 sm:w-96 rounded-2xl shadow-2xl border border-yellow-200 hidden flex-col overflow-hidden transition-all duration-300 opacity-0 translate-y-4">
+        <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 p-4 text-white flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-white/20 p-1.5 rounded-lg"><i class="ph-fill ph-robot text-lg text-white"></i></div>
+                <h3 class="font-bold text-sm tracking-wide text-white">AI ช่วยร่างข้อความแชท</h3>
+            </div>
+            <button onclick="window.toggleFloatingAI()" class="text-white/80 hover:text-white hover:bg-white/20 p-1 rounded-lg transition"><i class="ph-bold ph-x text-lg"></i></button>
+        </div>
+        <div class="p-4 flex flex-col gap-3 bg-gray-50/50">
+            <div>
+                <label class="block text-[11px] font-bold text-gray-500 mb-1">ข้อมูลดิบ (ใส่สั้นๆ ก็ได้)</label>
+                <textarea id="floatingRawInput" rows="3" class="w-full text-[13px] font-medium text-gray-800 p-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 transition resize-none shadow-sm" placeholder="เช่น หมาชื่อโบ้ ผลเลือดค่าตับขึ้น ให้ยาบำรุง 1 ด."></textarea>
+            </div>
+            
+            <button id="btnFloatingGenerate" onclick="window.generateFloatingCE()" class="w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:text-yellow-800 font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-[13px] shadow-sm border border-yellow-200">
+                <i class="ph-bold ph-magic-wand text-lg"></i> <span>ปรับคำให้สุภาพและน่าอ่าน</span>
+            </button>
+
+            <div class="relative mt-1">
+                <label class="block text-[11px] font-bold text-gray-500 mb-1">ผลลัพธ์ (พร้อมส่ง)</label>
+                <textarea id="floatingOutput" rows="4" class="w-full text-[13px] font-medium text-gray-800 p-3 bg-white border border-yellow-300 rounded-xl outline-none resize-none shadow-sm" placeholder="ข้อความที่ปรับแล้วจะแสดงที่นี่..."></textarea>
+                <button onclick="window.copyFloatingOutput()" class="absolute top-7 right-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 p-1.5 rounded-lg transition shadow-sm bg-white border border-gray-100" title="คัดลอกข้อความ">
+                    <i class="ph-bold ph-copy text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- ================= APPOINTMENT DASHBOARD MODAL ================= -->
     <div id="apptDashboardModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-gray-900/60 backdrop-blur-sm transition-opacity">
         <div class="bg-gray-50 w-full h-full sm:w-[95%] sm:h-[95vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden modal-enter" id="apptDashboardContent">
@@ -223,9 +258,7 @@
                 </div>
             </div>
 
-            <!-- Content Area -->
             <div class="flex-1 overflow-hidden relative">
-                
                 <!-- 1. แบบรายการ (List View) -->
                 <div id="apptDashboardListView" class="absolute inset-0 overflow-y-auto custom-scrollbar p-3 sm:p-6 bg-gray-50/50">
                     <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm max-w-6xl mx-auto">
@@ -270,7 +303,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
@@ -456,8 +488,8 @@
             <div class="flex items-center justify-center w-14 h-14 rounded-full bg-purple-50 mx-auto mb-4 border border-purple-100">
                 <i class="ph-fill ph-magic-wand text-3xl text-purple-500"></i>
             </div>
-            <h3 class="text-lg font-bold text-center text-gray-900 mb-2">ตั้งค่า AI วิเคราะห์ผลแล็บ</h3>
-            <p class="text-sm text-center text-gray-500 mb-5">กรุณาใส่ API Key ของ Google Gemini เพื่อใช้งาน<br>(สามารถรับได้ฟรีที่ Google AI Studio)</p>
+            <h3 class="text-lg font-bold text-center text-gray-900 mb-2">ตั้งค่าระบบ</h3>
+            <p class="text-sm text-center text-gray-500 mb-5">กรุณาใส่ API Key ของ Google Gemini เพื่อใช้งาน AI<br>(สามารถรับได้ฟรีที่ Google AI Studio)</p>
             <input type="password" id="geminiApiKey" placeholder="วาง API Key ที่นี่..." class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition outline-none text-sm font-bold mb-6">
             <div class="flex gap-3">
                 <button onclick="window.closeSettings()" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50">ยกเลิก</button>
@@ -513,7 +545,6 @@
     <!-- Firebase & JS Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        // ================= CHANGE: เพิ่ม enableIndexedDbPersistence =================
         import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, query, where, getDocs, getDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
@@ -530,7 +561,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // ================= CHANGE: เปิดระบบ Offline Cache เพื่อลดการใช้ Read Quota =================
         enableIndexedDbPersistence(db).catch((err) => {
             if (err.code == 'failed-precondition') {
                 console.warn("ไม่สามารถเปิด Cache ได้ (อาจเปิดหลาย Tab)");
@@ -574,6 +604,27 @@
         const savedApiKey = localStorage.getItem('gemini_api_key');
         if (savedApiKey) document.getElementById('geminiApiKey').value = savedApiKey;
 
+        window.openSettings = function() {
+            document.getElementById('aiSettingsModal').classList.remove('hidden');
+            document.getElementById('aiSettingsModal').classList.add('flex');
+        };
+
+        window.closeSettings = function() {
+            document.getElementById('aiSettingsModal').classList.remove('flex');
+            document.getElementById('aiSettingsModal').classList.add('hidden');
+        };
+
+        window.saveSettings = function() {
+            const key = document.getElementById('geminiApiKey').value.trim();
+            if(key) {
+                localStorage.setItem('gemini_api_key', key);
+                showAlert("บันทึกคีย์เรียบร้อย", "success");
+            } else {
+                localStorage.removeItem('gemini_api_key');
+            }
+            window.closeSettings();
+        };
+
         // Init Data Fetch
         signInAnonymously(auth).then(() => {
             loadAllData();
@@ -582,20 +633,17 @@
             showAlert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้", "error");
         });
 
-        // ================= CHANGE: Query ดึงเฉพาะข้อมูลของเดือนปัจจุบัน =================
         async function loadAllData() {
             loadingState.classList.remove('hidden');
             emptyState.classList.add('hidden');
             logsContainer.innerHTML = '';
 
             try {
-                // คำนวณวันเริ่มต้นและสิ้นสุดของเดือนปัจจุบัน
-                const selectedMonth = monthFilter.value; // e.g. "2024-02"
-                let logsQuery = query(logsRef); // Default: if somehow month is empty
+                const selectedMonth = monthFilter.value;
+                let logsQuery = query(logsRef); 
 
                 if (selectedMonth) {
                     const startOfMonth = `${selectedMonth}-01`;
-                    // สร้างวันสุดท้ายของเดือน (หลอกๆ เป็นวันที่ 31 ไว้ก่อน Firebase query string เช็คตามตัวอักษรได้)
                     const endOfMonth = `${selectedMonth}-31`; 
                     
                     logsQuery = query(logsRef, 
@@ -604,7 +652,6 @@
                     );
                 }
 
-                // การดึงข้อมูลนัดหมายดึงทั้งหมดไว้สำหรับปฏิทิน
                 const [logsSnap, apptsSnap] = await Promise.all([
                     getDocs(logsQuery),
                     getDocs(query(apptsRef))
@@ -616,7 +663,6 @@
                 window.allAppointments = [];
                 apptsSnap.forEach(doc => window.allAppointments.push({ id: doc.id, ...doc.data() }));
 
-                // จัดเรียง
                 window.petLogs = [...window.allClinicLogs].sort((a, b) => {
                     if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
                     return new Date(b.createdAt) - new Date(a.createdAt);
@@ -632,6 +678,83 @@
                 showAlert("เกิดข้อผิดพลาดในการดึงข้อมูล", "error");
             }
         }
+
+        // ================= FLOATING AI ASSISTANT LOGIC =================
+        window.toggleFloatingAI = function() {
+            const panel = document.getElementById('floatingAIPanel');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                setTimeout(() => {
+                    panel.classList.remove('opacity-0', 'translate-y-4');
+                    panel.classList.add('opacity-100', 'translate-y-0');
+                }, 10);
+            } else {
+                panel.classList.remove('opacity-100', 'translate-y-0');
+                panel.classList.add('opacity-0', 'translate-y-4');
+                setTimeout(() => {
+                    panel.classList.add('hidden');
+                }, 300);
+            }
+        };
+
+        window.generateFloatingCE = async function() {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                window.openSettings();
+                showAlert("กรุณาใส่ API Key ของ Google Gemini ก่อนใช้งาน AI", "error");
+                return;
+            }
+
+            const rawInput = document.getElementById('floatingRawInput').value.trim();
+            if (!rawInput) {
+                showAlert("กรุณาพิมพ์ข้อความตั้งต้นให้ AI ก่อนครับ", "error");
+                return;
+            }
+
+            const btn = document.getElementById('btnFloatingGenerate');
+            const outputBox = document.getElementById('floatingOutput');
+            
+            const origBtnHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-lg"></i> กำลังแต่งประโยค...';
+            btn.disabled = true;
+            outputBox.placeholder = "✨ AI กำลังแต่งประโยคให้ กรุณารอสักครู่...";
+            outputBox.value = "";
+
+            try {
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+
+                const prompt = `คุณเป็นผู้ช่วยสัตวแพทย์ที่เชี่ยวชาญการสื่อสารกับเจ้าของสัตว์เลี้ยง
+โปรดนำข้อมูลดิบ/บันทึกย่อทางการแพทย์ต่อไปนี้ มาแต่งและเรียบเรียงใหม่เป็นข้อความภาษาไทยสำหรับส่งแชท Line แจ้งอัปเดตอาการหาเจ้าของสัตว์เลี้ยง
+- ให้ใช้ภาษาที่สุภาพ เป็นมิตร อบอุ่น และเข้าใจง่าย
+- หลีกเลี่ยงศัพท์แพทย์ที่ซับซ้อน (ถ้ามีศัพท์แพทย์ให้แปลเป็นคำง่ายๆ สำหรับคนทั่วไป)
+- เติมอีโมจิให้น่าอ่านอย่างเหมาะสม (เช่น 🐶, 🐱, 🩺, 💊, ✨)
+- ตอบกลับเฉพาะข้อความที่เจ้าของคลินิกสามารถก๊อปปี้ส่งให้ลูกค้าได้ทันที ห้ามพิมพ์คำเกริ่นนำหรือคำลงท้ายของ AI เด็ดขาด
+
+ข้อมูลตั้งต้น:
+"${rawInput}"`;
+
+                const result = await model.generateContent(prompt);
+                outputBox.value = result.response.text().trim();
+                
+            } catch (error) {
+                console.error("Floating CE AI Error:", error);
+                showAlert("เกิดข้อผิดพลาดในการเรียกใช้ AI กรุณาตรวจสอบ API Key", "error");
+            } finally {
+                btn.innerHTML = origBtnHtml;
+                btn.disabled = false;
+                outputBox.placeholder = "ข้อความที่ปรับแล้วจะแสดงที่นี่...";
+            }
+        };
+
+        window.copyFloatingOutput = function() {
+            const outputBox = document.getElementById('floatingOutput');
+            if (!outputBox.value) return;
+            
+            outputBox.select();
+            document.execCommand('copy');
+            showAlert("คัดลอกข้อความเรียบร้อย นำไปวางใน Line ได้เลย", "success");
+        };
 
         // ================= HELPER FUNCTIONS =================
         window.compressImage = function(file) {
@@ -681,7 +804,7 @@
                 };
                 reader.readAsDataURL(file);
             });
-            event.target.value = ''; // เคลียร์ input เพื่อให้เลือกไฟล์เดิมซ้ำได้ถ้าต้องการ
+            event.target.value = ''; 
         };
 
         window.renderPreviews = function(id) {
@@ -795,7 +918,7 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            window.handleImageSelect(event, id); // แอดรูปเข้า Gallery ให้ด้วย
+            window.handleImageSelect(event, id); 
 
             const aiContextInput = document.getElementById(`ai-context-${id}`);
             const aiContextText = aiContextInput ? aiContextInput.value.trim() : "";
@@ -919,7 +1042,6 @@
                 if(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
             });
             
-            // เตรียมรูปเก่า+ใหม่
             const targetLog = window.petLogs.find(l => l.id === id);
             const update = targetLog.updates[index];
             let existingImgs = [];
@@ -1111,7 +1233,7 @@
         };
 
 
-        // ================= APPOINTMENT MODALS =================
+        // ================= APPOINTMENT MODALS (CREATE/EDIT/DAY VIEW) =================
         const dayModal = document.getElementById('dayAppointmentsModal');
         const dayModalContent = document.getElementById('dayAppointmentsModalContent');
 
@@ -1290,6 +1412,9 @@
             } else if (type === 'appointment') {
                 dTitle.innerText = "ยกเลิกนัดหมาย";
                 dText.innerHTML = "ยืนยันการยกเลิกและลบนัดหมายนี้?<br>รายการนี้จะหายไปจากตารางทันที";
+            } else if (type === 'preventive') {
+                dTitle.innerText = "ลบประวัติวัคซีน";
+                dText.innerHTML = "ต้องการลบประวัติวัคซีน/ยาป้องกันรายการนี้?<br>ข้อมูลที่ลบจะไม่สามารถกู้คืนได้";
             }
 
             dModal.classList.remove('hidden');
@@ -1351,6 +1476,14 @@
                         const dStr = document.getElementById('dayApptDateDisplay').getAttribute('data-raw-date');
                         window.showDayAppointments(dStr);
                     }
+                } 
+                else if (type === 'preventive') {
+                    window.currentPetPreventives = window.currentPetPreventives.filter(p => p.id !== id);
+                    const safePid = window.currentProfilePetId.replace(/\//g, '_');
+                    const petDocRef = doc(db, 'clinics', 'my-clinic', 'pets', safePid);
+                    await setDoc(petDocRef, { preventives: window.currentPetPreventives }, { merge: true });
+                    showAlert("ลบประวัติวัคซีนเรียบร้อย", "success");
+                    window.renderPreventives();
                 }
                 window.closeDeleteModal();
             } catch (error) {
@@ -1466,7 +1599,6 @@
                         let labHtml = update.labResult ? '<div class="' + boxBase + '"><p class="text-violet-600 text-[11px] font-bold mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-flask text-violet-500 text-sm"></i> ผลตรวจแล็บ (Lab Results)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.labResult + '</p></div>' : '';
                         let ceHtml = update.ce ? '<div class="' + boxBase + '"><p class="text-rose-600 text-[11px] font-bold mb-1 flex items-center gap-1.5"><i class="ph-fill ph-chat-circle-text text-rose-500 text-sm"></i> Client Education (CE)</p><p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-[13px] font-medium">' + update.ce + '</p></div>' : '';
                         
-                        // รวมรูปภาพ (รองรับทั้งแบบเดี่ยวเก่า และแบบหลายรูปใหม่)
                         let images = [];
                         if (update.imageUrl) images.push(update.imageUrl);
                         if (update.imageUrls && update.imageUrls.length > 0) images.push(...update.imageUrls);
@@ -1477,6 +1609,8 @@
                         }
 
                         let timestampHtml = update.timestamp || '';
+                        let editPreviewClass = update.imageUrl ? "relative w-fit mt-1 px-1" : "hidden relative w-fit mt-1 px-1";
+                        let editPreviewSrc = update.imageUrl ? update.imageUrl : "";
                         
                         let labDataBadge = '';
                         if (update.labData && Object.keys(update.labData).some(k => k !== 'labDate' && update.labData[k] !== null && update.labData[k] !== '')) {
@@ -1876,7 +2010,7 @@
                     weight: newWeight, temp: newTemp, text: updateText, pe: peText, diffDiag: ddxText, finalDiag: dxText, 
                     treatment: treatmentText, labResult: labText, ce: ceText, labData: hasLabData ? labData : null, 
                     timestamp: timeString, 
-                    imageUrls: imageUrls.length > 0 ? imageUrls : null // เก็บเป็น Array เสมอ
+                    imageUrls: imageUrls.length > 0 ? imageUrls : null 
                 };
 
                 await updateDoc(docRef, { updates: [...currentUpdates, newUpdateObj] });
@@ -1953,7 +2087,7 @@
                 currentUpdates[index].labData = hasLabData ? labData : null;
                 
                 currentUpdates[index].imageUrls = finalImageUrls.length > 0 ? finalImageUrls : null;
-                currentUpdates[index].imageUrl = null; // Clear legacy data
+                currentUpdates[index].imageUrl = null; 
                 
                 const docRef = doc(db, 'clinics', 'my-clinic', 'petLogs', id);
                 await updateDoc(docRef, { updates: currentUpdates });
@@ -1984,7 +2118,7 @@
 
         window.saveEditLog = async function(id) {
             const newName = document.getElementById(`edit-petName-${id}`).value.trim();
-            const newDate = document.getElementById(`edit-date-${id}`).value; // เพิ่มการบันทึกวันที่
+            const newDate = document.getElementById(`edit-date-${id}`).value; 
             const newPhone = document.getElementById(`edit-ownerPhone-${id}`).value.trim();
             const newSpecies = document.getElementById(`edit-species-${id}`).value;
             const newDob = document.getElementById(`edit-dob-${id}`).value;
@@ -2010,7 +2144,6 @@
                 targetLog.dob = newDob; 
                 targetLog.symptoms = newSymptoms;
 
-                // จัดเรียงข้อมูลใหม่หากมีการแก้วันที่
                 const sortFn = (a, b) => {
                     if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
                     return new Date(b.createdAt) - new Date(a.createdAt);
