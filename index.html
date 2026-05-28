@@ -197,7 +197,7 @@
     </div>
 
 
-    <!-- ================= FLOATING AI ASSISTANT (ใหม่) ================= -->
+    <!-- ================= FLOATING AI ASSISTANT (ใหม่ สีเหลือง ขวาล่าง) ================= -->
     <button onclick="window.toggleFloatingAI()" class="fixed bottom-6 right-6 z-[90] bg-yellow-500 text-white p-4 rounded-full shadow-[0_8px_30px_rgba(234,179,8,0.4)] hover:bg-yellow-600 transition-all hover:scale-105 group flex items-center justify-center gap-2 border border-yellow-400/50">
         <span class="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-in-out whitespace-nowrap font-bold text-sm">ผู้ช่วยร่างแชทเจ้าของ</span>
         <i class="ph-fill ph-magic-wand text-2xl"></i>
@@ -728,6 +728,7 @@
 - ให้ใช้ภาษาที่สุภาพ เป็นมิตร อบอุ่น และเข้าใจง่าย
 - หลีกเลี่ยงศัพท์แพทย์ที่ซับซ้อน (ถ้ามีศัพท์แพทย์ให้แปลเป็นคำง่ายๆ สำหรับคนทั่วไป)
 - เติมอีโมจิให้น่าอ่านอย่างเหมาะสม (เช่น 🐶, 🐱, 🩺, 💊, ✨)
+- **สำคัญมาก:** ห้ามใช้คำพูดที่ให้ความหวังเกินจริง มัดตัวคลินิก หรือรับปากว่าสัตว์เลี้ยงจะหายดี (เช่น ห้ามใช้คำว่า "ใกล้หายแล้ว", "หายห่วงได้เลย", "อาการดีเยี่ยม") ให้รายงานตามข้อเท็จจริงด้วยความระมัดระวัง เน้นย้ำเรื่องการเฝ้าสังเกตอาการ และการปฏิบัติตามคำแนะนำของสัตวแพทย์เป็นหลัก
 - ตอบกลับเฉพาะข้อความที่เจ้าของคลินิกสามารถก๊อปปี้ส่งให้ลูกค้าได้ทันที ห้ามพิมพ์คำเกริ่นนำหรือคำลงท้ายของ AI เด็ดขาด
 
 ข้อมูลตั้งต้น:
@@ -736,14 +737,13 @@
                 let result = null;
                 let lastError = null;
                 
-                // ให้ระบบไล่ทดสอบโมเดลต่างๆ เผื่อ API Key ไม่รองรับบางรุ่น
                 const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
 
                 for (const modelName of modelsToTry) {
                     try {
                         const model = genAI.getGenerativeModel({ model: modelName });
                         result = await model.generateContent(prompt);
-                        if (result) break; // ถ้าเจนผ่านให้หยุดลูป
+                        if (result) break; 
                     } catch (err) {
                         lastError = err; 
                     }
@@ -756,7 +756,6 @@
             } catch (error) {
                 console.error("Floating CE AI Error:", error);
                 
-                // ถอดรหัส Error ออกมาแจ้งเตือนให้ชัดเจน
                 let errorMsg = "เกิดข้อผิดพลาดในการวิเคราะห์ AI:\n";
                 if (error && error.message) {
                     if (error.message.includes("API key not valid")) {
@@ -820,7 +819,6 @@
             });
         };
 
-        // --- เพิ่มรูปหลายรูป ---
         window.handleImageSelect = function(event, id) {
             if(!window.pendingImages[id]) window.pendingImages[id] = [];
             const files = Array.from(event.target.files);
@@ -874,7 +872,6 @@
             if(fileInput) fileInput.value = '';
         };
 
-        // --- แก้ไขรูปหลายรูป ---
         window.handleEditImageSelect = function(event, id, index) {
             const stateKey = `${id}-${index}`;
             if(!window.editImageState[stateKey]) window.editImageState[stateKey] = { existing: [], pending: [] };
@@ -1407,7 +1404,6 @@
                 window.renderCalendar();
                 window.renderLogs(); 
                 
-                // รีเฟรชแฟ้มประวัติวัคซีน ถ้ากำลังเปิดอยู่
                 if(!document.getElementById('patientProfileModal').classList.contains('hidden')){
                     window.renderPreventives();
                 }
@@ -1577,6 +1573,171 @@
                     statusEl.className = "text-[10px] font-bold mt-1 block text-gray-500";
                 }
             }, 300);
+        };
+
+        window.switchProfileTab = function(tab) {
+            const tabHistoryBtn = document.getElementById('tab-history');
+            const tabPreventiveBtn = document.getElementById('tab-preventive');
+            const viewHistory = document.getElementById('view-history');
+            const viewPreventive = document.getElementById('view-preventive');
+            if(tab === 'history') {
+                viewHistory.classList.remove('hidden'); viewPreventive.classList.add('hidden');
+                tabHistoryBtn.className = "pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-1.5";
+                tabPreventiveBtn.className = "pb-3 text-sm font-bold text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition flex items-center gap-1.5";
+            } else {
+                viewPreventive.classList.remove('hidden'); viewHistory.classList.add('hidden');
+                tabPreventiveBtn.className = "pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-1.5";
+                tabHistoryBtn.className = "pb-3 text-sm font-bold text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition flex items-center gap-1.5";
+            }
+        };
+
+        window.openPatientProfile = async function(pid) {
+            window.currentProfilePetId = pid;
+            const matches = window.allClinicLogs.filter(l => l.petId === pid).sort((a,b) => {
+                if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+            if(matches.length === 0) return;
+            const petInfo = matches[0];
+            const ageStr = petInfo.dob ? calculateAge(petInfo.dob) : 'ไม่ระบุ';
+            let speciesIcon = 'ph-paw-print'; let speciesColor = 'text-gray-500 bg-gray-100 border-gray-200';
+            if (petInfo.species === 'สุนัข') { speciesIcon = 'ph-dog'; speciesColor = 'text-orange-600 bg-orange-50 border-orange-200'; }
+            else if (petInfo.species === 'แมว') { speciesIcon = 'ph-cat'; speciesColor = 'text-indigo-600 bg-indigo-50 border-indigo-200'; }
+
+            const headerHtml = `
+                <div class="flex items-start sm:items-center gap-4">
+                    <div class="flex-shrink-0 w-16 h-16 rounded-full bg-gray-50 border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                        <i class="ph-fill ${speciesIcon} text-3xl text-gray-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-1">
+                            <h2 class="text-2xl font-bold text-gray-900">${petInfo.petName}</h2>
+                            <span class="px-2 py-0.5 text-[11px] font-bold rounded-md border ${speciesColor} flex items-center gap-1">${petInfo.species}</span>
+                            <span class="text-[11px] font-bold text-gray-400 bg-gray-50 px-2.5 py-0.5 rounded border border-gray-200">ID: <span class="text-gray-800">${petInfo.petId}</span></span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-semibold text-gray-500 mt-2">
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-cake text-pink-400"></i> ${ageStr}</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-phone text-blue-400"></i> ${petInfo.ownerPhone || '-'}</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-stethoscope text-green-500"></i> เข้ารักษา ${matches.length} ครั้ง</span>
+                        </div>
+                    </div>
+                </div>`;
+            document.getElementById('profileHeaderContent').innerHTML = headerHtml;
+
+            let historyHtml = '';
+            matches.forEach((visit) => {
+                const dateObj = new Date(visit.date);
+                const displayDate = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                let badgeHtml = '';
+                if (visit.caseType === 'IPD') {
+                    if (visit.isDischarged) badgeHtml = '<span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold rounded border border-gray-200">กลับบ้านแล้ว</span>';
+                    else badgeHtml = '<span class="px-2 py-0.5 bg-red-50 text-red-500 text-[10px] font-bold rounded border border-red-200">แอดมิท (IPD)</span>';
+                } else { badgeHtml = '<span class="px-2 py-0.5 bg-blue-50 text-blue-500 text-[10px] font-bold rounded border border-blue-200">OPD</span>'; }
+
+                let updateSummary = visit.updates && visit.updates.length > 0 
+                    ? `<p class="text-xs font-semibold text-blue-500 mt-2 flex items-center gap-1"><i class="ph-fill ph-chat-circle text-blue-400"></i> อัปเดต ${visit.updates.length} ครั้ง</p>`
+                    : `<p class="text-[11px] text-gray-400 mt-2 italic">ไม่มีข้อมูลการอัปเดตย่อย</p>`;
+
+                historyHtml += `
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-cozy-green transition-colors relative">
+                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-gray-200 rounded-l-xl"></div>
+                        <div class="flex justify-between items-start mb-2 pl-2">
+                            <span class="text-sm font-bold text-gray-800 flex items-center gap-1.5"><i class="ph-fill ph-calendar-blank text-cozy-green"></i> ${displayDate}</span>
+                            ${badgeHtml}
+                        </div>
+                        <div class="pl-2">
+                            <p class="text-[10px] font-bold text-gray-400 mb-1 uppercase">อาการสำคัญ (CC)</p>
+                            <p class="text-sm text-gray-700 font-medium whitespace-pre-wrap leading-relaxed">${visit.symptoms}</p>
+                            ${updateSummary}
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('profileHistoryList').innerHTML = historyHtml;
+            window.switchProfileTab('history');
+            
+            const modal = document.getElementById('patientProfileModal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+
+            try {
+                const safePid = window.currentProfilePetId.replace(/\//g, '_'); 
+                const petDocRef = doc(db, 'clinics', 'my-clinic', 'pets', safePid);
+                const petSnap = await getDoc(petDocRef);
+                if (petSnap.exists()) window.currentPetPreventives = petSnap.data().preventives || [];
+                else window.currentPetPreventives = [];
+                window.renderPreventives();
+            } catch(e) { console.error("Error fetching preventives:", e); }
+        };
+
+        window.closePatientProfile = function() {
+            const modal = document.getElementById('patientProfileModal');
+            modal.classList.remove('flex'); modal.classList.add('hidden');
+            window.currentProfilePetId = null;
+        };
+
+        window.renderPreventives = function() {
+            const container = document.getElementById('preventiveTableContainer');
+            const pid = window.currentProfilePetId;
+            
+            const appts = window.allAppointments
+                .filter(a => a.petId === pid && (a.type.includes('วัคซีน') || a.type.includes('ถ่ายพยาธิ') || a.type.includes('เห็บ') || a.type.includes('ป้องกัน')))
+                .map(a => ({
+                    id: a.id,
+                    date: a.date,
+                    type: a.type,
+                    name: a.note ? `(นัดหมาย) ${a.note}` : '(นัดหมาย)',
+                    nextDue: null,
+                    source: 'appointment',
+                    apptData: a
+                }));
+
+            const combined = [...appts].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            if(combined.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 bg-gray-50 border border-gray-200 rounded-2xl border-dashed">
+                        <i class="ph ph-calendar-blank text-3xl text-gray-300 mb-2"></i>
+                        <p class="text-sm font-bold text-gray-400">ยังไม่มีรายการนัดหมายวัคซีนล่วงหน้า</p>
+                        <button onclick="window.closePatientProfile(); window.openAppointmentModal('${pid}')" class="mt-4 text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-100 transition shadow-sm"><i class="ph-bold ph-plus"></i> เพิ่มนัดหมายใหม่</button>
+                    </div>`;
+                return;
+            }
+
+            const today = new Date(); today.setHours(0,0,0,0);
+            let html = `
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-gray-100 text-gray-600 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 font-bold">วันนัดหมาย</th><th class="px-4 py-3 font-bold">ประเภท</th><th class="px-4 py-3 font-bold">รายการ / ยี่ห้อ</th><th class="px-4 py-3 font-bold">สถานะ</th><th class="px-4 py-3 font-bold text-center w-10"></th>
+                        </tr>
+                    </thead><tbody class="divide-y divide-gray-100 bg-white">`;
+
+            combined.forEach(p => {
+                const d = new Date(p.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                
+                let typeBadge = `<span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-[11px] font-bold border border-blue-200"><i class="ph-bold ph-calendar"></i> นัด ${p.type}</span>`;
+                html += `
+                    <tr class="bg-blue-50/40 hover:bg-blue-50 transition border-l-4 border-l-blue-400">
+                        <td class="px-4 py-3.5 text-blue-600 font-bold">${d}</td>
+                        <td class="px-4 py-3.5">${typeBadge}</td>
+                        <td class="px-4 py-3.5 font-bold text-blue-800">${p.name}</td>
+                        <td class="px-4 py-3.5"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-bold">📅 รอดำเนินการ</span></td>
+                        <td class="px-4 py-3.5 text-center flex items-center gap-1">
+                            <button onclick='window.closePatientProfile(); window.openAppointmentModal("${pid}",""," ", true, ${JSON.stringify(p.apptData).replace(/'/g, "\\'")})' class="text-blue-400 hover:text-blue-600 p-1.5 rounded transition" title="แก้ไขนัด"><i class="ph-bold ph-pencil-simple text-base"></i></button>
+                            <button onclick="window.openDeleteModal('appointment', '${p.id}')" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full transition" title="ยกเลิกนัด"><i class="ph-bold ph-x text-base"></i></button>
+                        </td>
+                    </tr>`;
+            });
+            html += `</tbody></table></div>`;
+            
+            html += `
+                <div class="mt-4 flex justify-end">
+                    <button onclick="window.closePatientProfile(); window.openAppointmentModal('${pid}')" class="text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center gap-1.5">
+                        <i class="ph-bold ph-plus"></i> เพิ่มนัดหมายใหม่
+                    </button>
+                </div>
+            `;
+            container.innerHTML = html;
         };
 
         window.renderLogs = function() {
