@@ -213,7 +213,14 @@
         </div>
         <div class="p-4 flex flex-col gap-3 bg-gray-50/50">
             <div>
-                <label class="block text-[11px] font-bold text-gray-500 mb-1">ข้อมูลดิบ (ใส่สั้นๆ ก็ได้)</label>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="block text-[11px] font-bold text-gray-500">ข้อมูลดิบ (ใส่สั้นๆ ก็ได้)</label>
+                    <select id="floatingLang" class="text-[10px] font-bold text-gray-600 bg-white border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-yellow-400 cursor-pointer shadow-sm">
+                        <option value="AUTO">🌐 Auto (ตามภาษาที่พิมพ์)</option>
+                        <option value="TH">🇹🇭 ภาษาไทย</option>
+                        <option value="EN">🇬🇧 English</option>
+                    </select>
+                </div>
                 <textarea id="floatingRawInput" rows="3" class="w-full text-[13px] font-medium text-gray-800 p-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 transition resize-none shadow-sm" placeholder="เช่น หมาชื่อโบ้ ผลเลือดค่าตับขึ้น ให้ยาบำรุง 1 ด."></textarea>
             </div>
             
@@ -711,6 +718,15 @@
                 return;
             }
 
+            // ตรวจจับและเลือกภาษา
+            const langSelect = document.getElementById('floatingLang').value;
+            let targetLang = langSelect;
+            if (targetLang === 'AUTO') {
+                // เช็คว่ามีตัวอักษรภาษาไทยปนอยู่หรือไม่
+                const hasThai = /[ก-๙]/.test(rawInput);
+                targetLang = hasThai ? 'TH' : 'EN';
+            }
+
             const btn = document.getElementById('btnFloatingGenerate');
             const outputBox = document.getElementById('floatingOutput');
             
@@ -723,7 +739,9 @@
             try {
                 const genAI = new GoogleGenerativeAI(apiKey);
                 
-                const prompt = `คุณเป็นผู้ช่วยสัตวแพทย์ที่เชี่ยวชาญการสื่อสารกับเจ้าของสัตว์เลี้ยง
+                let prompt = "";
+                if (targetLang === 'TH') {
+                    prompt = `คุณเป็นผู้ช่วยสัตวแพทย์ที่เชี่ยวชาญการสื่อสารกับเจ้าของสัตว์เลี้ยง
 โปรดนำข้อมูลดิบ/บันทึกย่อทางการแพทย์ต่อไปนี้ มาแต่งและเรียบเรียงใหม่เป็นข้อความภาษาไทยสำหรับส่งแชท Line แจ้งอัปเดตอาการหาเจ้าของสัตว์เลี้ยง
 - ให้ใช้ภาษาที่สุภาพ เป็นมิตร อบอุ่น และเข้าใจง่าย
 - หลีกเลี่ยงศัพท์แพทย์ที่ซับซ้อน (ถ้ามีศัพท์แพทย์ให้แปลเป็นคำง่ายๆ สำหรับคนทั่วไป)
@@ -734,6 +752,18 @@
 
 ข้อมูลตั้งต้น:
 "${rawInput}"`;
+                } else {
+                    prompt = `You are a veterinary assistant expert in communicating with pet owners.
+Please rewrite the following raw medical notes into a polite, warm, and easy-to-understand English message suitable for a chat app (like Line or WhatsApp) to update the pet owner.
+- Use polite, friendly, empathetic, and professional English.
+- Avoid complex medical jargon (translate them into layman's terms).
+- Appropriately use emojis (e.g., 🐶, 🐱, 🩺, 💊, ✨).
+- **CRITICAL:** Do NOT overpromise or give false hope (e.g., avoid saying "will be completely fine", "100% cured", "nothing to worry about"). Report the facts carefully and emphasize monitoring and following the vet's advice.
+- Provide ONLY the final message ready to be copy-pasted and sent to the client. Do NOT include any introductory or concluding remarks from the AI.
+
+Raw notes:
+"${rawInput}"`;
+                }
 
                 let result = null;
                 let lastError = null;
